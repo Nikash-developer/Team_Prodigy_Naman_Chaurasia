@@ -20,7 +20,11 @@ import noticeRoutes from './server/routes/noticeRoutes';
 import chatbotRoutes from './server/routes/chatbotRoutes';
 import questionPaperRoutes from './server/routes/questionPaperRoutes';
 
+import dns from "node:dns/promises";
+dns.setServers(["1.1.1.1", "8.8.8.8"]); // Cloudflare + Google DNS
+
 dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

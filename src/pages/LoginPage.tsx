@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Leaf, Mail, Lock, BadgeCheck, ArrowRight, ShieldCheck,
   ChevronLeft, User, GraduationCap, Building2, AlertCircle,
-  CheckCircle2, Send, Eye, EyeOff
+  CheckCircle2, Send, Eye, EyeOff, Sparkles
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
@@ -251,8 +251,8 @@ export default function LoginPage() {
                 {(view === 'login' || view === 'signup') && (
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Role</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['student', 'faculty', 'admin'] as const).map((r) => (
+                    <div className="grid grid-cols-2 gap-4">
+                      {(['student', 'faculty'] as const).map((r) => (
                         <button
                           key={r}
                           type="button"
@@ -400,7 +400,7 @@ export default function LoginPage() {
               transition={{ delay: 0.4 }}
               className="w-16 h-16 bg-primary/20 backdrop-blur-md rounded-2xl border border-primary/30 flex items-center justify-center mb-8"
             >
-              <ShieldCheck className="text-primary w-10 h-10" />
+              <Sparkles className="text-primary w-10 h-10" />
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
