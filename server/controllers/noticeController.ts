@@ -1,4 +1,4 @@
-import Notice from '../models/Notice.ts';
+import Notice from '../models/Notice';
 
 export const getNotices = async (req: any, res: any) => {
     try {

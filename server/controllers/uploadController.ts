@@ -1,7 +1,7 @@
 import multer from 'multer';
-import Submission from '../models/Submission.ts';
-import User from '../models/User.ts';
-import { calculateImpact } from '../utils/ecoEngine.ts';
+import Submission from '../models/Submission';
+import User from '../models/User';
+import { calculateImpact } from '../utils/ecoEngine';
 import * as pdf from 'pdf-parse';
 import path from 'path';
 import fs from 'fs';

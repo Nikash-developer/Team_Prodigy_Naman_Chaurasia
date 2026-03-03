@@ -1,6 +1,6 @@
 import express from 'express';
-import { getNotices, createNotice, markRead } from '../controllers/noticeController.ts';
-import { protectRoute, authorizeRole } from '../middlewares/authMiddleware.ts';
+import { getNotices, createNotice, markRead } from '../controllers/noticeController';
+import { protectRoute, authorizeRole } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 

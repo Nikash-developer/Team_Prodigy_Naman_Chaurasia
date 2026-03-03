@@ -1,5 +1,5 @@
-import Assignment from '../models/Assignment.ts';
-import Submission from '../models/Submission.ts';
+import Assignment from '../models/Assignment';
+import Submission from '../models/Submission';
 
 export const getAssignments = async (req: any, res: any) => {
     try {

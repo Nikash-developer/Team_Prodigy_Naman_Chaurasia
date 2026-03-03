@@ -1,6 +1,6 @@
 import express from 'express';
-import { gradeSubmission } from '../controllers/assignmentController.ts';
-import { protectRoute, authorizeRole } from '../middlewares/authMiddleware.ts';
+import { gradeSubmission } from '../controllers/assignmentController';
+import { protectRoute, authorizeRole } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
