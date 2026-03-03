@@ -7,6 +7,14 @@ import {
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
+import { auth, db } from '../lib/firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 const loginBgImg = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&q=80&auto=format&fit=crop';
 
 type ViewState = 'login' | 'forgot-password' | 'signup';
@@ -33,56 +41,79 @@ export default function LoginPage() {
     setError('');
     setSuccess('');
 
-    if (view === 'login') {
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
+    try {
+      if (view === 'login') {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
 
-        const contentType = res.headers.get('content-type');
-        let data;
-        if (contentType && contentType.includes('application/json')) {
-          data = await res.json();
-        } else {
-          throw new Error('Server returned an invalid response. This often means the MONGO_URI is not set correctly in your environment variables.');
-        }
+        // Fetch detailed user profile from Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          login({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            name: userData.name || 'User',
+            role: userData.role || 'student',
+            department: userData.department || '',
+            avatar: userData.avatar
+          } as any);
 
-        if (res.ok) {
-          localStorage.setItem('token', data.token);
-          login(data.user);
-          if (data.user.role === 'student') navigate('/student');
-          else if (data.user.role === 'admin') navigate('/admin');
+          if (userData.role === 'student') navigate('/student');
+          else if (userData.role === 'admin') navigate('/admin');
           else navigate('/faculty');
         } else {
-          setError(data.error || 'Login failed');
+          // If profile hasn't been created yet, allow access but prompt for setup or use defaults
+          navigate('/student');
         }
-      } catch (err) {
-        console.error('Login error:', err);
-        setError('Connection error or invalid response. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    } else if (view === 'forgot-password') {
-      // Simulate forgot password
-      setTimeout(() => {
+      } else if (view === 'forgot-password') {
+        await sendPasswordResetEmail(auth, email);
         setSuccess('Password reset link sent to your email!');
-        setIsLoading(false);
-      }, 1500);
-    } else {
-      // Simulate signup request with more data
-      console.log('Signup Request:', { fullName, email, role, idNumber, department, designation });
-      setTimeout(() => {
-        setSuccess(`Access request for ${fullName} (${role}) submitted! Our admin will review it.`);
-        setIsLoading(false);
-        // Reset fields
-        setFullName('');
-        setEmail('');
-        setIdNumber('');
-        setDepartment('');
-        setDesignation('');
-      }, 1500);
+      } else {
+        // Signup Flow
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
+
+        // Update display name
+        await updateProfile(firebaseUser, { displayName: fullName });
+
+        // Create detailed profile in Firestore
+        const profileData = {
+          name: fullName,
+          email: email,
+          role: role,
+          idNumber: idNumber,
+          department: department,
+          designation: designation || '',
+          createdAt: new Date().toISOString(),
+          eco_stats: {
+            total_pages_saved: 0,
+            total_water_saved: 0,
+            total_co2_prevented: 0,
+          }
+        };
+
+        await setDoc(doc(db, 'users', firebaseUser.uid), profileData);
+
+        setSuccess(`Registration successful! Welcome to Green-Sync.`);
+        setTimeout(() => {
+          if (role === 'student') navigate('/student');
+          else navigate('/faculty');
+        }, 1500);
+      }
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      let msg = 'Authentication failed. Please try again.';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        msg = 'Invalid email or password.';
+      } else if (err.code === 'auth/email-already-in-use') {
+        msg = 'This email is already registered.';
+      } else if (err.code === 'auth/network-request-failed') {
+        msg = 'Network error. Please check your connection.';
+      }
+      setError(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 

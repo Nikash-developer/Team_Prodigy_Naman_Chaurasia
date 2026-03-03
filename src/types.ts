@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string | number;
   email: string;
   role: 'student' | 'faculty' | 'hod' | 'admin';
   name: string;
@@ -8,7 +8,7 @@ export interface User {
 }
 
 export interface Assignment {
-  id: number;
+  id: string | number;
   title: string;
   description: string;
   long_description?: string;
@@ -17,15 +17,15 @@ export interface Assignment {
   subject: string;
   deadline: string;
   max_marks: number;
-  faculty_id: number;
+  faculty_id: string | number;
   department: string;
   status?: 'pending' | 'in-progress' | 'submitted';
 }
 
 export interface Submission {
-  id: number;
-  assignment_id: number;
-  student_id: number;
+  id: string | number;
+  assignment_id: string | number;
+  student_id: string | number;
   file_url: string;
   submission_date: string;
   grade?: number;
@@ -36,7 +36,7 @@ export interface Submission {
 }
 
 export interface Notice {
-  id: number;
+  id: string | number;
   title: string;
   content: string;
   attachment_url?: string;
@@ -44,7 +44,7 @@ export interface Notice {
   publish_date: string;
   expiry_date?: string;
   is_emergency: boolean;
-  author_id: number;
+  author_id: string | number;
   author_name?: string;
   image_url?: string;
 }
