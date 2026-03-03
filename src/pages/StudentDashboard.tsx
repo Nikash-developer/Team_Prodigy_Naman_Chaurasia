@@ -1255,7 +1255,7 @@ export default function StudentDashboard() {
 
     const mockCourses: Course[] = [
       // Semester 1
-      { id: 101, title: "Applied Mathematics I", instructor: "Dr. A. Sharma", progress: 100, color: "blue", icon: <Calculator size={24} />, semester: 1, syllabus: ["Matrices", "Complex Numbers", "Integration Basics"], syllabusUrl: "https://www.isical.ac.in/~mtechcr/2016/Applied_Mathematics_I.pdf" },
+      { id: 101, title: "Applied Mathematics I", instructor: "Dr. A. Sharma", progress: 100, color: "blue", icon: <Calculator size={24} />, semester: 1, syllabus: ["Matrices", "Complex Numbers", "Integration Basics"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
       { id: 102, title: "Engineering Physics I", instructor: "Prof. R. Mehta", progress: 100, color: "purple", icon: <Zap size={24} />, semester: 1, syllabus: ["Quantum Mechanics", "Crystallography", "Semiconductors"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
       { id: 103, title: "Basic Electronics", instructor: "Dr. K. Patel", progress: 100, color: "orange", icon: <Zap size={24} />, semester: 1, syllabus: ["Diodes", "BJTs", "Digital Circuits"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
       { id: 104, title: "Eng. Mechanics", instructor: "Prof. S. Gupta", progress: 100, color: "pink", icon: <Settings size={24} />, semester: 1, syllabus: ["Statics", "Kinematics", "Friction"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
@@ -1266,7 +1266,7 @@ export default function StudentDashboard() {
       { id: 202, title: "Engineering Chemistry", instructor: "Dr. P. Desai", progress: 100, color: "green", icon: <Search size={24} />, semester: 2, syllabus: ["Water Tech", "Corrosion", "Nanomaterials"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
       { id: 203, title: "Structured Prog.", instructor: "Prof. V. Shah", progress: 100, color: "blue", icon: <Code size={24} />, semester: 2, syllabus: ["Pointers", "Structures", "File Handling"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
       { id: 204, title: "Eng. Graphics", instructor: "Mr. A. Kulkarni", progress: 100, color: "purple", icon: <Palette size={24} />, semester: 2, syllabus: ["Orthographic", "Projections", "CAD"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
-      { id: 205, title: "Env. Studies", instructor: "Dr. L. Green", progress: 100, color: "green", icon: <Leaf size={24} />, semester: 2, syllabus: ["Ecosystems", "Biodiversity", "Pollution"], syllabusUrl: "/uploads/syllabus/comp-sem4.pdf" },
+      { id: 205, title: "Env. Studies", instructor: "Dr. L. Green", progress: 100, color: "green", icon: <Leaf size={24} />, semester: 2, syllabus: ["Ecosystems", "Biodiversity", "Pollution"], syllabusUrl: "/uploads/syllabus/computer-engineering-syllabus.pdf" },
 
       // Semester 3
       { id: 1, title: "Data Structures", instructor: "Dr. Sarah Miller", progress: 85, color: "blue", icon: <Code size={24} />, semester: 3, syllabus: ["Linked Lists", "Stack & Queue", "Trees & Graphs"], syllabusUrl: "/uploads/syllabus/comp-sem3.pdf" },
@@ -1880,7 +1880,7 @@ export default function StudentDashboard() {
                       <div className="bg-primary/5 p-6 lg:p-8 rounded-3xl lg:rounded-[2rem] text-center border border-primary/10">
                         <p className={`text-[9px] lg:text-[10px] font-bold ${t.muted} uppercase tracking-widest mb-1 lg:mb-2`}>Your Rank</p>
                         <p className="text-4xl lg:text-5xl font-black text-primary mb-1 lg:mb-2">#{(user?.department === 'Biology' || user?.department === 'History' || user?.department === 'Math' || user?.department === 'CS') ? '1-4' : '5'}</p>
-                        <p className={`text-[10px] lg:text-xs font-bold ${t.muted}`}>{user?.department || 'GreenSync Campus'}</p>
+                        <p className={`text-[10px] lg:text-xs font-bold ${t.muted}`}>{user?.department && user.department !== 'General' ? user.department : 'IT Dept'}</p>
                       </div>
                     </div>
                   </motion.section>
