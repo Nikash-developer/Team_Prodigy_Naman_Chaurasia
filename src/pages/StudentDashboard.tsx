@@ -228,7 +228,7 @@ const AssignmentItem: React.FC<{
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -4, shadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" }}
-      className={`relative w-full p-6 rounded-[2.5rem] border transition-all duration-500 group overflow-hidden ${isSubmitted
+      className={`relative w-full p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border transition-all duration-500 group overflow-hidden ${isSubmitted
         ? 'bg-green-50/20 border-green-100 opacity-90'
         : isActive
           ? `${t.card} border-primary shadow-2xl shadow-primary/10 ring-2 ring-primary/20`
@@ -243,56 +243,79 @@ const AssignmentItem: React.FC<{
         />
       )}
 
-      <div className="flex flex-col sm:flex-row items-start gap-6 relative z-10">
+      <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 relative z-10">
         {/* Progress/Time Indicator */}
-        <motion.div
-          animate={isUrgent ? { scale: [1, 1.05, 1] } : {}}
-          transition={isUrgent ? { repeat: Infinity, duration: 2 } : {}}
-          className={`relative w-16 h-16 shrink-0 flex items-center justify-center ${t.search} rounded-2xl p-1.5 border ${t.border}`}
-        >
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="16" fill="none" className="stroke-current opacity-10" />
-            <motion.circle
-              initial={{ strokeDashoffset: 100 }}
-              animate={{
-                strokeDashoffset: isSubmitted ? 0 : 75,
-                stroke: isSubmitted ? "#22C55E" : isUrgent ? "#EF4444" : "currentColor"
-              }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-              cx="18" cy="18" r="16" fill="none" strokeWidth="3"
-              strokeDasharray="100, 100"
-              className={!isSubmitted && !isUrgent ? t.accent : ""}
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className={`text-[11px] font-black tracking-tighter ${isSubmitted ? 'text-green-600' : isUrgent ? 'text-red-500' : t.heading}`}>
-              {getTimeLeftString()}
-            </span>
+        <div className="flex items-center sm:block w-full sm:w-auto justify-between">
+          <motion.div
+            animate={isUrgent ? { scale: [1, 1.05, 1] } : {}}
+            transition={isUrgent ? { repeat: Infinity, duration: 2 } : {}}
+            className={`relative w-12 h-12 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center ${t.search} rounded-2xl p-1.5 border ${t.border}`}
+          >
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" className="stroke-current opacity-10" />
+              <motion.circle
+                initial={{ strokeDashoffset: 100 }}
+                animate={{
+                  strokeDashoffset: isSubmitted ? 0 : 75,
+                  stroke: isSubmitted ? "#22C55E" : isUrgent ? "#EF4444" : "currentColor"
+                }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                cx="18" cy="18" r="16" fill="none" strokeWidth="3"
+                strokeDasharray="100, 100"
+                className={!isSubmitted && !isUrgent ? t.accent : ""}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className={`text-[10px] sm:text-[11px] font-black tracking-tighter ${isSubmitted ? 'text-green-600' : isUrgent ? 'text-red-500' : t.heading}`}>
+                {getTimeLeftString()}
+              </span>
+            </div>
+          </motion.div>
+
+          <div className="sm:hidden flex items-center gap-2">
+            {!isSubmitted && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                onClick={(e) => { e.stopPropagation(); onRemind(); }}
+                className="p-2.5 bg-slate-50 text-slate-400 hover:text-primary rounded-xl transition-all border border-slate-100"
+                title="Reminder"
+              >
+                <Clock size={16} />
+              </motion.button>
+            )}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              onClick={(e) => { e.stopPropagation(); onDetails(); }}
+              className="p-2.5 bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl transition-all border border-slate-100"
+              title="Details"
+            >
+              <FileText size={16} />
+            </motion.button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Content Section */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
-            <h4 className={`text-lg font-black truncate transition-colors ${isSubmitted ? 'text-green-800/80 line-through' : t.heading}`}>
+        <div className="flex-1 min-w-0 w-full">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className={`text-base sm:text-lg font-black truncate transition-colors ${isSubmitted ? 'text-green-800/80 line-through' : t.heading}`}>
               {assignment.title}
             </h4>
             {isUrgent && !isSubmitted && (
-              <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] font-black rounded-full animate-pulse uppercase">Urgent</span>
+              <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[8px] font-black rounded-full animate-pulse uppercase">Urgent</span>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mb-4">
-            <span className={`text-[11px] font-black ${t.accent} uppercase tracking-widest ${t.accentBg} px-2.5 py-1 rounded-lg border ${t.border}`}>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className={`text-[9px] sm:text-[11px] font-black ${t.accent} uppercase tracking-widest ${t.accentBg} px-2 py-0.5 rounded-lg border ${t.border}`}>
               {assignment.subject}
             </span>
-            <span className={`text-[11px] font-bold ${t.muted}`}>@ {assignment.department.replace('Prof. ', '')}</span>
+            <span className={`text-[9px] sm:text-[11px] font-bold ${t.muted}`}>@ {assignment.department.replace('Prof. ', '')}</span>
             {isActive && (
               <motion.span
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
-                className={`text-[11px] font-black ${t.accent} px-2`}
+                className={`text-[9px] sm:text-[11px] font-black ${t.accent} px-2`}
               >
                 {timeLeft}
               </motion.span>
@@ -300,105 +323,103 @@ const AssignmentItem: React.FC<{
           </div>
 
           {/* Action/File Bar */}
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onUpload(file);
-              }}
-              accept=".pdf"
-              className="hidden"
-            />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) onUpload(file);
+                }}
+                accept=".pdf"
+                className="hidden"
+              />
 
-            {!isSubmitted && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs transition-all shadow-sm ${assignment.uploadedFile
-                  ? 'bg-[#22C55E] text-white shadow-green-500/20'
-                  : `${t.card} ${t.heading} border ${t.border} hover:border-primary/20`
-                  }`}
-              >
-                {assignment.uploadedFile ? <CheckCircle2 size={16} /> : <Upload size={16} />}
-                {assignment.uploadedFile ? 'Uploaded Ready' : 'Upload Submission'}
-              </motion.button>
-            )}
-
-            {assignment.uploadedFile && (
-              <div className="flex items-center gap-2">
+              {!isSubmitted && (
                 <motion.button
-                  whileHover={{ scale: 1.1, rotate: -5 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const url = URL.createObjectURL(assignment.uploadedFile!);
-                    window.open(url, '_blank');
-                  }}
-                  className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-primary/10 hover:text-primary transition-all"
-                  title="View PDF"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs transition-all shadow-sm ${assignment.uploadedFile
+                    ? 'bg-[#22C55E] text-white shadow-green-500/20'
+                    : `${t.search} ${t.heading} border ${t.border} hover:border-primary/20`
+                    }`}
                 >
-                  <Eye size={18} />
+                  {assignment.uploadedFile ? <CheckCircle2 size={14} /> : <Upload size={14} />}
+                  <span className="hidden xs:inline">{assignment.uploadedFile ? 'Ready' : 'Upload PDF'}</span>
                 </motion.button>
+              )}
+
+              {assignment.uploadedFile && (
+                <div className="flex items-center gap-1.5">
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const url = URL.createObjectURL(assignment.uploadedFile!);
+                      window.open(url, '_blank');
+                    }}
+                    className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-primary/10 hover:text-primary transition-all"
+                  >
+                    <Eye size={14} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    onClick={(e) => { e.stopPropagation(); onDeleteUpload(); }}
+                    className="p-2 bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all"
+                  >
+                    <Trash2 size={14} />
+                  </motion.button>
+                </div>
+              )}
+
+              <div className="hidden sm:flex items-center gap-2">
+                {!isSubmitted && (
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    onClick={(e) => { e.stopPropagation(); onRemind(); }}
+                    className="p-2 bg-slate-50 text-slate-400 hover:text-primary rounded-lg transition-all border border-transparent hover:border-slate-200"
+                    title="Reminder"
+                  >
+                    <Clock size={14} />
+                  </motion.button>
+                )}
                 <motion.button
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  onClick={(e) => { e.stopPropagation(); onDeleteUpload(); }}
-                  className="p-2.5 bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all"
-                  title="Delete"
+                  whileHover={{ scale: 1.05 }}
+                  onClick={(e) => { e.stopPropagation(); onDetails(); }}
+                  className="text-[10px] sm:text-xs font-black text-slate-400 hover:text-slate-600 px-2 uppercase tracking-widest"
                 >
-                  <Trash2 size={18} />
+                  Details
                 </motion.button>
               </div>
-            )}
-
-            {!isSubmitted && (
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                onClick={(e) => { e.stopPropagation(); onRemind(); }}
-                className="p-2.5 bg-slate-50 text-slate-400 hover:text-primary rounded-xl transition-all border border-transparent hover:border-slate-200"
-                title="Reminder"
-              >
-                <Clock size={18} />
-              </motion.button>
-            )}
+            </div>
 
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={(e) => { e.stopPropagation(); onDetails(); }}
-              className="text-xs font-black text-slate-400 hover:text-slate-600 px-3 uppercase tracking-widest"
+              disabled={isSubmitted || !assignment.uploadedFile}
+              whileHover={!(isSubmitted || !assignment.uploadedFile) ? { scale: 1.1, backgroundColor: "#1e612c" } : {}}
+              whileTap={!(isSubmitted || !assignment.uploadedFile) ? { scale: 0.9 } : {}}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isSubmitted || !assignment.uploadedFile) return;
+                onAction((isInProgress || assignment.id === 1) ? 'submit' : 'start');
+              }}
+              className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all shadow-lg ${isSubmitted
+                ? 'bg-slate-50 text-green-500 shadow-none'
+                : assignment.uploadedFile
+                  ? 'bg-[#22C55E] text-white shadow-green-500/20'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                }`}
             >
-              Details
+              {isSubmitted ? (
+                <CheckCircle2 size={20} className="sm:w-6 sm:h-6" />
+              ) : (isInProgress || assignment.id === 1) ? (
+                <Send size={18} className="sm:w-6 sm:h-6" />
+              ) : (
+                <Zap size={18} className="sm:w-6 sm:h-6" />
+              )}
             </motion.button>
           </div>
-        </div>
-
-        {/* Floating Action Button */}
-        <div className="self-center sm:self-start">
-          <motion.button
-            disabled={isSubmitted || !assignment.uploadedFile}
-            whileHover={!(isSubmitted || !assignment.uploadedFile) ? { scale: 1.1, backgroundColor: "#1e612c" } : {}}
-            whileTap={!(isSubmitted || !assignment.uploadedFile) ? { scale: 0.9 } : {}}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isSubmitted || !assignment.uploadedFile) return;
-              onAction((isInProgress || assignment.id === 1) ? 'submit' : 'start');
-            }}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg ${isSubmitted
-              ? 'bg-slate-50 text-green-500 shadow-none'
-              : assignment.uploadedFile
-                ? 'bg-[#22C55E] text-white shadow-green-500/20'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-              }`}
-          >
-            {isSubmitted ? (
-              <CheckCircle2 size={24} />
-            ) : (isInProgress || assignment.id === 1) ? (
-              <Send size={24} />
-            ) : (
-              <Zap size={24} />
-            )}
-          </motion.button>
         </div>
       </div>
     </motion.div>
@@ -2861,10 +2882,10 @@ export default function StudentDashboard() {
       {/* AI Assistant Floating Button */}
       <button
         onClick={() => setIsAIChatOpen(true)}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group pointer-events-auto"
+        className="fixed bottom-24 lg:bottom-8 right-6 lg:right-8 w-14 h-14 lg:w-16 lg:h-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group pointer-events-auto"
       >
-        <Sparkles className="w-8 h-8 group-hover:rotate-12 transition-transform" />
-        <div className={`absolute -top-12 right-0 ${t.card} ${t.text} px-4 py-2 rounded-xl text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border ${t.border}`}>
+        <Sparkles className="w-6 h-6 lg:w-8 lg:h-8 group-hover:rotate-12 transition-transform" />
+        <div className={`absolute -top-12 right-0 ${t.card} ${t.text} px-4 py-2 rounded-xl text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border ${t.border} hidden lg:block`}>
           Need help? Ask AI
         </div>
       </button>
@@ -4285,30 +4306,31 @@ export default function StudentDashboard() {
         )}
       </AnimatePresence>
       {/* Mobile Bottom Navigation */}
-      <div className={`lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[90vw] max-w-sm ${t.header} border ${t.border} rounded-[2.5rem] shadow-2xl p-2.5 flex items-center justify-between backdrop-blur-xl border-white/20`}>
+      <div className={`lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[95vw] sm:w-[90vw] max-w-md ${t.header} border ${t.border} rounded-[2.5rem] shadow-2xl p-2.5 flex items-center justify-between backdrop-blur-xl border-white/20`}>
         {[
-          { id: 'dashboard', icon: <LayoutDashboard size={20} />, label: 'Home' },
-          { id: 'courses', icon: <BookOpen size={20} />, label: 'Study' },
-          { id: 'assignment-submission', icon: <Upload size={20} />, label: 'Submit' },
-          { id: 'papers', icon: <FileQuestion size={20} />, label: 'Papers' },
-          { id: 'eco-tracker', icon: <TreePine size={20} />, label: 'Eco' }
+          { id: 'dashboard', icon: <LayoutDashboard size={18} />, label: 'Home' },
+          { id: 'courses', icon: <BookOpen size={18} />, label: 'Study' },
+          { id: 'notes', icon: <FileText size={18} />, label: 'Notes' },
+          { id: 'assignment-submission', icon: <Upload size={18} />, label: 'Submit' },
+          { id: 'papers', icon: <FileQuestion size={18} />, label: 'Papers' },
+          { id: 'eco-tracker', icon: <TreePine size={18} />, label: 'Eco' }
         ].map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id as Tab)}
             className="flex-1 relative group py-2"
           >
-            <div className={`mx-auto flex flex-col items-center justify-center transition-all duration-300 ${activeTab === item.id ? 'scale-110 -translate-y-1' : 'opacity-60 grayscale hover:opacity-100'}`}>
-              <div className={`p-2.5 rounded-2xl transition-all duration-500 ${activeTab === item.id ? 'bg-primary text-white shadow-lg shadow-primary/30 rotate-0' : 'bg-transparent rotate-0'}`}>
+            <div className={`mx-auto flex flex-col items-center justify-center transition-all duration-300 ${activeTab === item.id ? 'scale-110' : 'opacity-60 grayscale hover:opacity-100'}`}>
+              <div className={`p-2 rounded-xl transition-all duration-500 ${activeTab === item.id ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-transparent'}`}>
                 {item.icon}
               </div>
               <motion.span
                 initial={false}
                 animate={{
                   opacity: activeTab === item.id ? 1 : 0,
-                  y: activeTab === item.id ? 2 : 10
+                  height: activeTab === item.id ? 'auto' : 0
                 }}
-                className={`text-[9.5px] font-black uppercase tracking-tighter mt-1 whitespace-nowrap ${activeTab === item.id ? 'text-primary' : 'text-slate-400'}`}
+                className={`text-[8px] font-black uppercase tracking-tighter mt-1 whitespace-nowrap ${activeTab === item.id ? 'text-primary' : 'text-slate-400'}`}
               >
                 {item.label}
               </motion.span>
