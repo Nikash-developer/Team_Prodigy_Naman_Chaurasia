@@ -19,6 +19,7 @@ import uploadRoutes from './server/routes/uploadRoutes';
 import noticeRoutes from './server/routes/noticeRoutes';
 import chatbotRoutes from './server/routes/chatbotRoutes';
 import questionPaperRoutes from './server/routes/questionPaperRoutes';
+import quizRoutes from './server/routes/quizRoutes';
 
 import dns from "node:dns";
 // dns.setServers(["1.1.1.1", "8.8.8.8"]); // Cloudflare + Google DNS - Disabled for production stability unless needed
@@ -57,6 +58,7 @@ app.use('/api/submissions', dbMiddleware, submissionRoutes);
 app.use('/api/upload', dbMiddleware, uploadRoutes);
 app.use('/api/notices', dbMiddleware, noticeRoutes);
 app.use('/api/chatbot', dbMiddleware, chatbotRoutes);
+app.use('/api/quiz', dbMiddleware, quizRoutes);
 app.use('/api', dbMiddleware, questionPaperRoutes);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

@@ -1062,6 +1062,41 @@ export default function StudentDashboard() {
   const [selectedQuizAnswer, setSelectedQuizAnswer] = useState<number | null>(null);
   const [userAnswers, setUserAnswers] = useState<(number | null)[]>([]);
   const [isAnswerChecking, setIsAnswerChecking] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+
+  const handleStartAIQuiz = async (topic: string) => {
+    setSelectedQuizTopic(topic);
+    setIsGeneratingQuiz(true);
+    setActiveQuizPhase('quiz'); // Transition early but show loading state
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/quiz/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ topic })
+      });
+
+      const data = await response.json();
+      if (data.questions) {
+        setActiveQuizQuestions(data.questions);
+        setQuizScore(0);
+        setCurrentQuizIndex(0);
+        setUserAnswers(new Array(20).fill(null));
+      } else {
+        throw new Error(data.error || "Failed to generate quiz");
+      }
+    } catch (error) {
+      console.error("Quiz Generation Error:", error);
+      alert("Failed to generate AI quiz. Please try again.");
+      setActiveQuizPhase('topic');
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
 
   const [notes] = useState<Note[]>([
     { id: 1, title: 'Politics SEM 1 English', subject: 'Political Science', semester: 1, category: 'BA', url: 'https://www.munotes.in/uploads/notes/BA/Semester%201/FYBA%20Politics%20SEM%201%20English-munotes.pdf' },
@@ -3477,116 +3512,11 @@ export default function StudentDashboard() {
                           Array.from(new Set(papers.map(p => p.subject))).map((topic, i) => (
                             <button
                               key={i}
-                              onClick={() => {
-                                setSelectedQuizTopic(topic);
-                                // Helper to shuffle
-                                const shuffle = (array: any[]) => {
-                                  const shuffled = [...array];
-                                  for (let i = shuffled.length - 1; i > 0; i--) {
-                                    const j = Math.floor(Math.random() * (i + 1));
-                                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                                  }
-                                  return shuffled;
-                                };
-
-                                const topicsData: Record<string, { q: string, o: string[], a: number, e: string }[]> = {
-                                  'Computer Networks': [
-                                    { q: "Which layer of the OSI model is responsible for end-to-end communication?", o: ["Transport Layer", "Network Layer", "Physical Layer", "Data Link Layer"], a: 0, e: "The Transport Layer provides transparent transfer of data between end users, providing reliable data transfer services to the upper layers." },
-                                    { q: "What is the primary function of a Router?", o: ["Packet Forwarding", "MAC Filtering", "Power Supply", "Data Encryption"], a: 0, e: "A router operates at the Network Layer (Layer 3) and determines the best path for data packets to travel across a network." },
-                                    { q: "What does DNS stand for?", o: ["Domain Name System", "Data Network Service", "Direct Node Serial", "Digital Native Socket"], a: 0, e: "DNS is the phonebook of the Internet. Humans access information online through domain names, like google.com; DNS translates these to IP addresses." },
-                                    { q: "What is the size of an IPv4 address?", o: ["32 bits", "64 bits", "128 bits", "16 bits"], a: 0, e: "An IPv4 address is a 32-bit address that uniquely and universally identifies a connection of a device to the internet." },
-                                    { q: "Which protocol is used for securely browsing the web?", o: ["HTTPS", "FTP", "SMTP", "TELNET"], a: 0, e: "HTTPS (Hypertext Transfer Protocol Secure) is an extension of HTTP. It uses encryption for secure communication over a computer network." },
-                                    { q: "What is the standard port for HTTP?", o: ["80", "443", "22", "21"], a: 0, e: "Port 80 is the default port assigned to HTTP, while port 443 is used for HTTPS." },
-                                    { q: "Which topology uses a central hub?", o: ["Star", "Mesh", "Bus", "Ring"], a: 0, e: "In a star topology, every node is connected to a central hub, whereas in a bus topology, nodes are connected to a single common cable." },
-                                    { q: "What is the range of Class C IP addresses?", o: ["192.0.0.0 - 223.255.255.255", "128.0.0.0 - 191.255.255.255", "1.0.0.0 - 126.255.255.255", "240.0.0.0 - 255.255.255.255"], a: 0, e: "Class C addresses start with bits 110, covering 192.0.0.0 to 223.255.255.255." },
-                                    { q: "What is the purpose of Subnet Masking?", o: ["Identify Network/Host portion", "Data compression", "Error detection", "Physical addressing"], a: 0, e: "A subnet mask is used by the network layer to separate the network ID from the host ID within an IP address." },
-                                    { q: "Which protocol uses 3-way handshake?", o: ["TCP", "UDP", "ICMP", "IGMP"], a: 0, e: "TCP uses a three-way handshake (SYN, SYN-ACK, ACK) to establish a reliable connection between a client and a server." },
-                                    { q: "What is the MAC address length?", o: ["48 bits", "32 bits", "64 bits", "128 bits"], a: 0, e: "A MAC address is a 48-bit unique identifier assigned to a network interface controller." },
-                                    { q: "Which device operates at Layer 3?", o: ["Router", "Switch", "Hub", "Repeater"], a: 0, e: "Routers operate at the Network Layer (Layer 3) to route packets based on IP addresses." },
-                                    { q: "What does DHCP stand for?", o: ["Dynamic Host Configuration Protocol", "Data Hub Control Process", "Direct Host Connection Path", "Digital Highway Central Port"], a: 0, e: "DHCP is a network management protocol used on UDP/IP networks to dynamically assign IP addresses." },
-                                    { q: "Which protocol is connectionless?", o: ["UDP", "TCP", "HTTP", "FTP"], a: 0, e: "UDP (User Datagram Protocol) is a connectionless protocol that does not establish a formal connection before sending data." },
-                                    { q: "What is the default port for SSH?", o: ["22", "23", "25", "53"], a: 0, e: "Port 22 is the standard port for the Secure Shell (SSH) protocol." },
-                                    { q: "Which protocol is used to transfer files?", o: ["FTP", "SMTP", "SNMP", "ARP"], a: 0, e: "FTP (File Transfer Protocol) is specifically designed for the transfer of computer files between a client and a server." },
-                                    { q: "What is a 'Collision Domain' associated with?", o: ["Hubs", "Switches", "Routers", "Gateways"], a: 0, e: "A hub creates a single large collision domain for all connected devices, whereas a switch segments the network into multiple collision domains." },
-                                    { q: "What is the loopback IP address?", o: ["127.0.0.1", "192.168.1.1", "10.0.0.1", "0.0.0.0"], a: 0, e: "127.0.0.1 is the standard loopback address for IPv4, used by the device to communicate with itself." },
-                                    { q: "Which layer provides encryption in OSI?", o: ["Presentation", "Application", "Session", "Transport"], a: 0, e: "The Presentation Layer (Layer 6) is responsible for data translation, encryption, and compression." },
-                                    { q: "What is the PDU of the Network Layer?", o: ["Packet", "Frame", "Segment", "Bits"], a: 0, e: "The Protocol Data Unit (PDU) at the Network Layer is known as a Packet." }
-                                  ],
-                                  'Operating Systems': [
-                                    { q: "What is a 'Deadlock'?", o: ["Processes waiting infinitely", "Computer crash", "Registry error", "Network failure"], a: 0, e: "Deadlock is a situation where a set of processes are blocked because each process is holding a resource and waiting for another resource held by another process." },
-                                    { q: "Which scheduling algorithm uses Time Quantum?", o: ["Round Robin", "FCFS", "SJF", "Priority"], a: 0, e: "Round Robin scheduling uses a fixed time unit called a time quantum or time slice to cycle through processes." },
-                                    { q: "What is 'Virtual Memory'?", o: ["Using disk space as RAM", "Upgraded physical RAM", "Cache memory", "Flash storage"], a: 0, e: "Virtual memory is a memory management technique that provides an \"idealized abstraction of the storage resources\" that are actually available on a given machine." },
-                                    { q: "What is the purpose of a Kernel?", o: ["Manage system resources", "Interface for user", "Virus protection", "Web browsing"], a: 0, e: "The kernel is the core of an operating system. It manages the operations of the computer and the hardware, most notably memory and CPU time." },
-                                    { q: "What is paging?", o: ["Memory management scheme", "Printing process", "Network protocol", "Disk partitioning"], a: 0, e: "Paging is a memory management scheme that eliminates the need for contiguous allocation of physical memory." },
-                                    { q: "What is a Mutex?", o: ["Mutual Exclusion object", "Memory text file", "Multiple Execution unit", "Main Extension"], a: 0, e: "A Mutex (Mutual Exclusion) is a synchronization primitive used to manage access to a shared resource." },
-                                    { q: "Which system call creates a process?", o: ["fork()", "exec()", "wait()", "exit()"], a: 0, e: "The fork() system call is used to create a new process by duplicating the calling process." },
-                                    { q: "What is Thrashing?", o: ["High page fault rate", "Disk formatting", "Heat management", "CPU overclocking"], a: 0, e: "Thrashing occurs when the system spends more time processing page faults than executing instructions." },
-                                    { q: "What is the First Fit algorithm?", o: ["Allocate first available block", "Allocate smallest block", "Allocate largest block", "Allocate last block"], a: 0, e: "First Fit allocates the first hole that is big enough to satisfy the memory request." },
-                                    { q: "What is a Semaphore?", o: ["Synchronization tool", "Storage device", "Bus architecture", "Logic gate"], a: 0, e: "A semaphore is a variable or abstract data type used to control access to a common resource by multiple processes." },
-                                    { q: "What are CPU registers?", o: ["High-speed storage in CPU", "Permanent disk storage", "External memory", "Virtual buffers"], a: 0, e: "Registers are small, fast storage locations within the CPU used for holding operands and intermediate results." },
-                                    { q: "Which is a non-preemptive algorithm?", o: ["FCFS", "SRTF", "Round Robin", "Priority Scheduling"], a: 0, e: "First-Come, First-Served (FCFS) is a non-preemptive scheduling algorithm where once a process starts, it runs to completion." },
-                                    { q: "What is Context Switching?", o: ["Saving state for another process", "Power saving mode", "Changing GUI theme", "Switching user accounts"], a: 0, e: "Context switching is the process of storing the state of a process so that it can be resumed at a later point." },
-                                    { q: "What is a Shell?", o: ["Command line interface", "Hardware component", "Database management", "Graphics driver"], a: 0, e: "A shell is a computer program which exposes an operating system's services to a human user or other program." },
-                                    { q: "Which is not an OS component?", o: ["BIOS", "Process Manager", "File System", "I/O Manager"], a: 0, e: "The BIOS (Basic Input/Output System) is firmware used to perform hardware initialization during the booting process; it is not a part of the OS itself." },
-                                    { q: "What is spooling?", o: ["Simultaneous Peripheral Op On-Line", "Sorting process", "Memory clearing", "Data backup"], a: 0, e: "Spooling is a process in which data is sent to a temporary working area (or 'spool') to be processed by a device or program." },
-                                    { q: "What is the 'init' process PID?", o: ["1", "0", "100", "55"], a: 0, e: "PID 1 is traditionally assigned to the init process (the first process started during system boot)." },
-                                    { q: "What is a zombie process?", o: ["Finished but has entry in table", "Infinite loop process", "System process", "Hidden process"], a: 0, e: "A zombie process is a process that has completed execution but still has an entry in the process table." },
-                                    { q: "Which disk scheduling is also called Elevator?", o: ["SCAN", "C-SCAN", "LOOK", "SSTF"], a: 0, e: "The SCAN algorithm is often called the elevator algorithm because it moves the disk arm across the entire disk, serving requests in one direction and then the other." },
-                                    { q: "What is RAID 0 focused on?", o: ["Performance (Striping)", "Redundancy (Mirroring)", "Error Correction", "Power efficiency"], a: 0, e: "RAID 0 uses striping to provide data across disks, which increases performance but provides no redundancy." }
-                                  ],
-                                  'Database Management': [
-                                    { q: "What is a Primary Key?", o: ["Unique identifier for record", "Duplicate index", "Foreign relation", "System ID"], a: 0, e: "A primary key is a specific choice of a minimal set of attributes (columns) that uniquely specify a tuple (row) in a relation (table)." },
-                                    { q: "What does SQL stand for?", o: ["Structured Query Language", "Simple Quick Logic", "Systematic Quality List", "Storage Quantified Layer"], a: 0, e: "SQL is a standard language for accessing and manipulating databases." },
-                                    { q: "What is Normalization?", o: ["Reducing data redundancy", "Increasing file size", "Creating backups", "Encrypting tables"], a: 0, e: "Database normalization is the process of structuring a database in accordance with a series of so-called normal forms in order to reduce data redundancy." },
-                                    { q: "What is a Foreign Key?", o: ["Link between two tables", "Primary index of table", "Random data column", "Security password"], a: 0, e: "A foreign key is a set of attributes in one table that refers to the primary key of another table." },
-                                    { q: "What is a 'Transaction'?", o: ["Unit of work as single logic", "Data transfer to cloud", "Financial payment", "Table deletion"], a: 0, e: "A transaction is a single logical unit of work that accesses and possibly modifies the contents of a database." },
-                                    { q: "What does ACID stand for?", o: ["Atomicity, Consistency, Isolation, Durability", "Active, Clean, Integrated, Data", "Archive, Check, Index, Delete", "Always, Correct, Instant, Detailed"], a: 0, e: "ACID is a set of properties of database transactions intended to guarantee data validity despite errors, power failures, and other mishaps." },
-                                    { q: "What is a 'Join' operation?", o: ["Combining rows from two tables", "Deleting multiple records", "Changing user permissions", "Splitting a table"], a: 0, e: "A JOIN clause is used to combine rows from two or more tables, based on a related column between them." },
-                                    { q: "What is 'Indexing' used for?", o: ["Speeding up data retrieval", "Archiving old data", "Calculating sums", "Table styling"], a: 0, e: "Indices are used to quickly locate data without having to search every row in a database table every time a database table is accessed." },
-                                    { q: "What is NoSQL?", o: ["Non-tabular database", "A broken SQL query", "Secret Query Language", "Database with no data"], a: 0, e: "NoSQL (Not only SQL) provides a mechanism for storage and retrieval of data that is modeled in means other than the tabular relations used in relational databases." },
-                                    { q: "What is an Entity Relationship Diagram (ERD)?", o: ["Graphical representation of data", "Computer hardware map", "Process flow chart", "Website navigation"], a: 0, e: "An ERD is a visual representation of different entities within a system and how they relate to each other." }
-                                  ],
-                                  'Artificial Intelligence': [
-                                    { q: "What is Machine Learning?", o: ["Software learning from data", "Typing code manually", "Storing data on cloud", "Hardware manufacturing"], a: 0, e: "Machine learning (ML) is a field of study in artificial intelligence concerned with the development and study of statistical algorithms that can learn from data." },
-                                    { q: "What is a Neural Network?", o: ["Brain-inspired algorithm", "Database connection system", "Circuit board layout", "Web server architecture"], a: 0, e: "Artificial neural networks (ANNs) are inspired by the biological neural networks that constitute animal brains." },
-                                    { q: "What is Natural Language Processing (NLP)?", o: ["Interaction with human language", "Speeding up CPU cycles", "Graphic design tool", "Encryption algorithm"], a: 0, e: "NLP is a subfield of linguistics, computer science, and artificial intelligence concerned with the interactions between computers and human language." },
-                                    { q: "What is 'Supervised Learning'?", o: ["Learning with labeled data", "Learning with no data", "Manual data entry", "Learning on high-end GPUs"], a: 0, e: "Supervised learning is the machine learning task of learning a function that maps an input to an output based on example input-output pairs." },
-                                    { q: "What is a Chatbot?", o: ["AI for conversation", "Hardware robot", "Security firewall", "Search engine spider"], a: 0, e: "A chatbot is a software application used to conduct an on-line chat conversation via text or text-to-speech." },
-                                    { q: "What is 'Deep Learning'?", o: ["Multi-layered neural networks", "Learning while sleeping", "Search engine indexing", "Data backup method"], a: 0, e: "Deep learning is part of a broader family of machine learning methods based on artificial neural networks with representation learning." },
-                                    { q: "What is Computer Vision?", o: ["Interpreting visual input", "Monitor brightness control", "Glasses for programmers", "Video editing software"], a: 0, e: "Computer vision is an interdisciplinary scientific field that deals with how computers can gain high-level understanding from digital images or videos." },
-                                    { q: "What is an 'Agent' in AI?", o: ["System that perceives/acts", "A sales representative", "Secret service officer", "Background program"], a: 0, e: "In artificial intelligence, an intelligent agent is anything that perceives its environment, takes actions autonomously in order to achieve goals, and may improve its performance with learning or may use knowledge." },
-                                    { q: "What is 'Unsupervised Learning'?", o: ["Learning from unlabeled data", "Learning with a teacher", "Controlled experiments", "Manual data sorting"], a: 0, e: "Unsupervised learning is a type of machine learning that looks for previously unknown patterns in a data set without pre-existing labels." },
-                                    { q: "What is Turing Test?", o: ["Test for machine intelligence", "Code efficiency test", "Memory capacity test", "Internet speed test"], a: 0, e: "The Turing test, originally called the imitation game by Alan Turing in 1950, is a test of a machine's ability to exhibit intelligent behavior equivalent to, or indistinguishable from, that of a human." }
-                                  ],
-                                  'default': Array.from({ length: 40 }, (_, idx) => ({
-                                    q: `In the field of ${topic}, how does Module ${idx + 1} define the principle of ${idx % 3 === 0 ? 'Optimization' : idx % 3 === 1 ? 'Architecture' : 'Efficiency'}?`,
-                                    o: ["Linear scaling", "Heuristic modeling", "Systematic review", "Empirical validation"],
-                                    a: idx % 4,
-                                    e: `This principle focuses on the ${idx % 3 === 0 ? 'mathematical refinement' : idx % 3 === 1 ? 'structural design' : 'resource utilization'} as specified in the university curriculum for ${topic}.`
-                                  }))
-                                };
-
-                                const pool = (topicsData as any)[topic as string] || topicsData['default'];
-                                const shuffledPool = shuffle(pool).slice(0, 20);
-
-                                const finalQuestions = shuffledPool.map((item, idx) => ({
-                                  id: idx + 1,
-                                  question: item.q,
-                                  options: item.o,
-                                  correctAnswer: item.a,
-                                  explanation: item.e
-                                }));
-
-                                setActiveQuizQuestions(finalQuestions);
-                                setQuizScore(0);
-                                setCurrentQuizIndex(0);
-                                setUserAnswers(new Array(20).fill(null));
-                                setActiveQuizPhase('quiz');
-                              }}
+                              onClick={() => handleStartAIQuiz(topic as string)}
                               className={`p-6 ${t.search} border ${t.border} rounded-3xl text-left hover:border-primary/50 hover:bg-primary/5 transition-all group`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className={`font-black ${t.heading} group-hover:text-primary transition-colors`}>{topic}</span>
+                                <span className={`font-black ${t.heading} group-hover:text-primary transition-colors`}>{topic as string}</span>
                                 <ArrowUpRight size={18} className={`${t.muted} group-hover:text-primary group-hover:translate-x-1 group-hover:-translate-y-1 transition-all`} />
                               </div>
                             </button>
@@ -3595,21 +3525,7 @@ export default function StudentDashboard() {
                           ['Computer Networks', 'Operating Systems', 'Discrete Mathematics', 'Database Management', 'Artificial Intelligence'].map((topic, i) => (
                             <button
                               key={i}
-                              onClick={() => {
-                                setSelectedQuizTopic(topic);
-                                const generated = Array.from({ length: 20 }, (_, idx) => ({
-                                  id: idx + 1,
-                                  question: `In ${topic}, which of the following best describes the concept of ${idx % 2 === 0 ? 'Abstraction' : 'Parallelism'} in Module ${Math.floor(idx / 4) + 1}?`,
-                                  options: ["State management overhead", "Functional decoupling", "Concurrent resource allocation", "Hierarchical inheritance"],
-                                  correctAnswer: Math.floor(Math.random() * 4),
-                                  explanation: `This is a generated explanation for ${topic} question ${idx + 1}. It covers the core concept of ${idx % 2 === 0 ? 'Abstraction' : 'Parallelism'} within the module.`
-                                }));
-                                setActiveQuizQuestions(generated);
-                                setQuizScore(0);
-                                setCurrentQuizIndex(0);
-                                setUserAnswers(new Array(20).fill(null));
-                                setActiveQuizPhase('quiz');
-                              }}
+                              onClick={() => handleStartAIQuiz(topic)}
                               className={`p-6 ${t.search} border ${t.border} rounded-3xl text-left hover:border-primary/50 hover:bg-primary/5 transition-all group`}
                             >
                               <span className={`font-black ${t.heading} group-hover:text-primary transition-colors`}>{topic}</span>
@@ -3628,84 +3544,103 @@ export default function StudentDashboard() {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-10"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>Current Subject</p>
-                          <h4 className={`text-xl font-black ${t.heading}`}>{selectedQuizTopic}</h4>
+                      {isGeneratingQuiz ? (
+                        <div className="flex flex-col items-center justify-center py-20 space-y-6">
+                          <Bot size={64} className="text-primary animate-bounce" />
+                          <div className="text-center space-y-2">
+                            <h3 className={`text-2xl font-black ${t.heading}`}>AI is generating your quiz...</h3>
+                            <p className={`${t.muted} font-medium`}>Searching Mumbai University patterns and web sources.</p>
+                          </div>
+                          <div className={`w-64 h-2 ${t.search} rounded-full overflow-hidden`}>
+                            <motion.div
+                              animate={{ x: [-256, 256] }}
+                              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                              className="w-1/2 h-full bg-primary"
+                            />
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>Question PROGRESS</p>
-                          <h4 className={`text-xl font-black text-primary`}>{currentQuizIndex + 1} / 20</h4>
-                        </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <p className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>Current Subject</p>
+                              <h4 className={`text-xl font-black ${t.heading}`}>{selectedQuizTopic}</h4>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>Question PROGRESS</p>
+                              <h4 className={`text-xl font-black text-primary`}>{currentQuizIndex + 1} / 20</h4>
+                            </div>
+                          </div>
 
-                      {/* Progress Bar */}
-                      <div className={`h-2 ${t.search} rounded-full overflow-hidden`}>
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${((currentQuizIndex + 1) / 20) * 100}%` }}
-                          className="h-full bg-primary"
-                        />
-                      </div>
+                          {/* Progress Bar */}
+                          <div className={`h-2 ${t.search} rounded-full overflow-hidden`}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${((currentQuizIndex + 1) / 20) * 100}%` }}
+                              className="h-full bg-primary"
+                            />
+                          </div>
 
-                      <div className="space-y-6">
-                        <h3 className={`text-2xl font-black ${t.heading} leading-tight`}>
-                          {activeQuizQuestions[currentQuizIndex]?.question}
-                        </h3>
+                          <div className="space-y-6">
+                            <h3 className={`text-2xl font-black ${t.heading} leading-tight`}>
+                              {activeQuizQuestions[currentQuizIndex]?.question}
+                            </h3>
 
-                        <div className="grid grid-cols-1 gap-4">
-                          {activeQuizQuestions[currentQuizIndex]?.options.map((option, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                if (isAnswerChecking) return;
-                                setSelectedQuizAnswer(idx);
-                              }}
-                              className={`p-5 rounded-2xl border-2 text-left font-bold transition-all flex items-center gap-4 ${selectedQuizAnswer === idx
-                                ? 'bg-primary/5 border-primary text-primary'
-                                : `${t.search} ${t.border} ${t.text} hover:border-primary/20`
-                                }`}
-                            >
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black ${selectedQuizAnswer === idx ? 'bg-primary text-white' : `${t.card} ${t.muted} border ${t.border}`
-                                }`}>
-                                {String.fromCharCode(65 + idx)}
-                              </div>
-                              {option}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                            <div className="grid grid-cols-1 gap-4">
+                              {activeQuizQuestions[currentQuizIndex]?.options.map((option, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    if (isAnswerChecking) return;
+                                    setSelectedQuizAnswer(idx);
+                                  }}
+                                  className={`p-5 rounded-2xl border-2 text-left font-bold transition-all flex items-center gap-4 ${selectedQuizAnswer === idx
+                                    ? 'bg-primary/5 border-primary text-primary'
+                                    : `${t.search} ${t.border} ${t.text} hover:border-primary/20`
+                                    }`}
+                                >
+                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black ${selectedQuizAnswer === idx ? 'bg-primary text-white' : `${t.card} ${t.muted} border ${t.border}`
+                                    }`}>
+                                    {String.fromCharCode(65 + idx)}
+                                  </div>
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
 
-                      <button
-                        disabled={selectedQuizAnswer === null || isAnswerChecking}
-                        onClick={() => {
-                          setIsAnswerChecking(true);
+                          <button
+                            disabled={selectedQuizAnswer === null || isAnswerChecking}
+                            onClick={() => {
+                              setIsAnswerChecking(true);
 
-                          // Track user answer
-                          const newAnswers = [...userAnswers];
-                          newAnswers[currentQuizIndex] = selectedQuizAnswer;
-                          setUserAnswers(newAnswers);
+                              // Track user answer
+                              const newAnswers = [...userAnswers];
+                              newAnswers[currentQuizIndex] = selectedQuizAnswer;
+                              setUserAnswers(newAnswers);
 
-                          if (selectedQuizAnswer === activeQuizQuestions[currentQuizIndex].correctAnswer) {
-                            setQuizScore(prev => prev + 1);
-                          }
+                              if (selectedQuizAnswer === activeQuizQuestions[currentQuizIndex].correctAnswer) {
+                                setQuizScore(prev => prev + 1);
+                              }
 
-                          setTimeout(() => {
-                            if (currentQuizIndex < 19) {
-                              setCurrentQuizIndex(prev => prev + 1);
-                              setSelectedQuizAnswer(null);
-                              setIsAnswerChecking(false);
-                            } else {
-                              setActiveQuizPhase('results');
-                              setIsAnswerChecking(false);
-                            }
-                          }, 200);
-                        }}
-                        className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 disabled:opacity-50 flex items-center justify-center gap-3"
-                      >
-                        {currentQuizIndex < 19 ? 'Next Question' : 'Finish Quiz'}
-                        <ChevronRight size={20} />
-                      </button>
+                              setTimeout(() => {
+                                if (currentQuizIndex < 19) {
+                                  setCurrentQuizIndex(prev => prev + 1);
+                                  setSelectedQuizAnswer(null);
+                                  setIsAnswerChecking(false);
+                                } else {
+                                  setActiveQuizPhase('results');
+                                  setIsAnswerChecking(false);
+                                }
+                              }, 200);
+                            }}
+                            className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 disabled:opacity-50 flex items-center justify-center gap-3"
+                          >
+                            {currentQuizIndex < 19 ? 'Next Question' : 'Finish Quiz'}
+                            <ChevronRight size={20} />
+                          </button>
+                        </>
+                      )}
                     </motion.div>
                   )}
 
