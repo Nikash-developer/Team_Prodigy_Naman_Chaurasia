@@ -18,6 +18,8 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import TreeAnimation from '../components/TreeAnimation';
+
 
 const loginBgImg = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=900&q=80&auto=format&fit=crop';
 
@@ -25,6 +27,7 @@ type ViewState = 'login' | 'forgot-password' | 'signup';
 
 export default function LoginPage() {
   const [view, setView] = useState<ViewState>('login');
+  const [treeLoaded, setTreeLoaded] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -500,63 +503,75 @@ export default function LoginPage() {
           </AnimatePresence>
         </div>
 
-        <div className="hidden md:block w-1/2 bg-[#111827] relative overflow-hidden">
-          <motion.img
-            initial={{ scale: 1.1, opacity: 0 }}
-            animate={{ scale: 1, opacity: 0.4 }}
-            transition={{ duration: 1.5 }}
-            src={loginBgImg}
-            alt="Futuristic premium greenhouse layout"
-            className="absolute inset-0 w-full h-full object-cover"
-            referrerPolicy="no-referrer"
+        <div className="hidden md:block w-1/2 bg-[#111827] relative overflow-hidden group">
+          <div className={`w-full h-full transition-all duration-1000 ${treeLoaded ? 'blur-[3px]' : 'blur-0'}`}>
+            <TreeAnimation onComplete={() => setTreeLoaded(true)} />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: treeLoaded ? 0.4 : 0 }}
+            transition={{ duration: 1 }}
+            className="absolute inset-0 bg-gradient-to-t from-[#111827] via-[#111827]/40 to-transparent"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#111827] via-[#111827]/40 to-transparent" />
 
-          <div className="absolute inset-0 p-16 flex flex-col justify-center text-white">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="w-16 h-16 bg-primary/20 backdrop-blur-md rounded-2xl border border-primary/30 flex items-center justify-center mb-8"
-            >
-              <Sparkles className="text-primary w-10 h-10" />
-            </motion.div>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="text-5xl font-black mb-6 leading-tight tracking-tight"
-            >
-              Welcome back to the <span className="text-primary">Green Revolution</span>
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="text-lg text-slate-300 leading-relaxed mb-10 max-w-md"
-            >
-              Seamlessly manage your academic life while tracking your eco-footprint. Together, let's create a sustainable, paperless campus.
-            </motion.p>
+          <div className="absolute inset-0 p-8 lg:p-16 flex flex-col justify-center text-white">
+            <AnimatePresence>
+              {treeLoaded && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className="bg-[#111827]/30 backdrop-blur-[6px] p-8 lg:p-12 rounded-[2.5rem] border border-white/5 max-w-lg shadow-2xl"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="w-16 h-16 bg-primary/20 backdrop-blur-md rounded-2xl border border-primary/30 flex items-center justify-center mb-8"
+                  >
+                    <Sparkles className="text-primary w-10 h-10" />
+                  </motion.div>
+                  <motion.h2
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-4xl lg:text-5xl font-black mb-6 leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] select-none"
+                    style={{ textShadow: '0 0 20px rgba(0,0,0,0.4)' }}
+                  >
+                    Welcome back to the <span className="text-primary">Green Revolution</span>
+                  </motion.h2>
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-base lg:text-lg text-slate-200 leading-relaxed mb-10 drop-shadow-md select-none"
+                  >
+                    Seamlessly manage your academic life while tracking your eco-footprint. Together, let's create a sustainable, paperless campus.
+                  </motion.p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="flex flex-wrap gap-4"
-            >
-              <div className="px-5 py-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                  <Leaf size={18} fill="currentColor" />
-                </div>
-                <span className="text-sm font-bold">Eco-Tracking</span>
-              </div>
-              <div className="px-5 py-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                  <BadgeCheck size={18} />
-                </div>
-                <span className="text-sm font-bold">Digital Portal</span>
-              </div>
-            </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex flex-wrap gap-4"
+                  >
+                    <div className="px-5 py-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-3 hover:bg-white/10 transition-colors cursor-default">
+                      <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                        <Leaf size={18} fill="currentColor" />
+                      </div>
+                      <span className="text-sm font-bold">Eco-Tracking</span>
+                    </div>
+                    <div className="px-5 py-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-3 hover:bg-white/10 transition-colors cursor-default">
+                      <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                        <BadgeCheck size={18} />
+                      </div>
+                      <span className="text-sm font-bold">Digital Portal</span>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="absolute top-10 right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
