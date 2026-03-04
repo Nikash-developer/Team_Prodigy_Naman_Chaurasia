@@ -9,4 +9,4 @@ const noticeSchema = new mongoose.Schema({
     read_receipts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
-export default mongoose.model('Notice', noticeSchema);
+export default mongoose.models.Notice || mongoose.model('Notice', noticeSchema);

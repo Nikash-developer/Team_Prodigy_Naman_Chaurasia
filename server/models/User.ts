@@ -15,4 +15,4 @@ const userSchema = new mongoose.Schema({
     eco_level: { type: Number, default: 1 }
 }, { timestamps: true });
 
-export default mongoose.model('User', userSchema);
+export default mongoose.models.User || mongoose.model('User', userSchema);

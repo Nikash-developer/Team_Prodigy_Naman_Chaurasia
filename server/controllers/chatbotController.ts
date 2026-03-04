@@ -1,7 +1,7 @@
-import Notice from '../models/Notice.ts';
-import Assignment from '../models/Assignment.ts';
-import QuestionPaper from '../models/QuestionPaper.ts';
-import User from '../models/User.ts';
+import Notice from '../models/Notice';
+import Assignment from '../models/Assignment';
+import QuestionPaper from '../models/QuestionPaper';
+import User from '../models/User';
 
 export const handleChatOptions = async (req: any, res: any) => {
     try {
