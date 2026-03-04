@@ -7,7 +7,6 @@ const submissionSchema = new mongoose.Schema({
     page_count: { type: Number, default: 0 },
     plagiarism_score: { type: Number, default: 0 },
     grading_rubric_scores: { type: Map, of: Number },
-    grade: { type: Number, default: 0 },
     feedback_text: { type: String, default: "" },
     status: { type: String, enum: ['Submitted', 'Graded'], default: 'Submitted' },
     eco_impact: {
