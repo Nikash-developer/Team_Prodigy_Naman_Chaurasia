@@ -19,9 +19,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: "Topic is required" });
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
-            return res.status(500).json({ error: "GEMINI_API_KEY is not configured in Vercel Environment Variables." });
+            return res.status(500).json({ error: "OPENAI_API_KEY is not configured in Vercel Environment Variables." });
         }
 
         const prompt = `Generate exactly 10 challenging academic multiple-choice questions for a university student on the topic: "${topic}".
@@ -35,43 +35,54 @@ Each object must have:
   "explanation": "short educational string"
 }`;
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const apiUrl = 'https://api.openai.com/v1/chat/completions';
 
         const apiResponse = await fetch(apiUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
+                model: "gpt-4o-mini", // Efficient and high performance
+                messages: [
+                    { role: "system", content: "You are a specialized academic quiz generator." },
+                    { role: "user", content: prompt }
+                ],
+                response_format: { type: "json_object" }
             })
         });
 
         if (!apiResponse.ok) {
             const errorBody = await apiResponse.text();
-            console.error(`Gemini API Error (${apiResponse.status}):`, errorBody);
+            console.error(`OpenAI API Error (${apiResponse.status}):`, errorBody);
             return res.status(502).json({ error: `AI API error: ${errorBody.slice(0, 200)}` });
         }
 
         const apiResult = await apiResponse.json();
-        const text = apiResult?.candidates?.[0]?.content?.parts?.[0]?.text;
+        let text = apiResult?.choices?.[0]?.message?.content;
 
         if (!text) {
             return res.status(502).json({ error: "Empty response from AI model" });
         }
 
-        let questions;
+        // OpenAI with JSON mode might return { "questions": [...] } or just [...]
+        // Let's ensure we get the array.
+        let parsed;
         try {
-            questions = JSON.parse(text);
+            parsed = JSON.parse(text);
+            if (parsed.questions && Array.isArray(parsed.questions)) {
+                parsed = parsed.questions;
+            }
         } catch {
             const jsonMatch = text.match(/\[[\s\S]*\]/);
             if (jsonMatch) {
-                questions = JSON.parse(jsonMatch[0]);
+                parsed = JSON.parse(jsonMatch[0]);
             } else {
                 return res.status(502).json({ error: "AI returned invalid JSON" });
             }
         }
+        const questions = parsed;
 
         if (!Array.isArray(questions) || questions.length === 0) {
             return res.status(502).json({ error: "AI returned empty array" });
