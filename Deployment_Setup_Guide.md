@@ -1,3 +1,5 @@
+<!-- Campus Pace - Ultimate Force Update - 2026-04-11 -->
+<!-- Campus Pace - Global Synchronization & Stabilization Update - 2026-04-11 -->
 # Deployment Setup Guide - Campus pace
 
 To get your app working perfectly on the live Vercel link, you need to configure two things: **Vercel Settings** and **Supabase Authentication**.

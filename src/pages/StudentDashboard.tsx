@@ -1,3 +1,5 @@
+// Campus Pace - Ultimate Force Update - 2026-04-11
+// Campus Pace - Global Synchronization & Stabilization Update - 2026-04-11
 // Campus Pace - Stable Upload & Sync Update - 2026-04-11
 import { StudentAttendancePage } from '../components/attendance/StudentAttendancePage';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -1447,11 +1449,14 @@ export default function StudentDashboard() {
       }
 
       try {
-        // AUTH STABILIZATION: Resolve "Lock stolen" auth contention
-        const { error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) console.warn("Dashboard Auth sync sync failed:", sessionError);
+        // 1. Prepare Multipart Form Data for Server-Side Upload
+        const formData = new FormData();
+        formData.append('file', assignment.uploadedFile);
+        formData.append('assignmentId', id.toString());
+        formData.append('student_email', user?.email || '');
+                formData.append('student_name', user?.name || '');
 
-        // TIMEOUT WRAPPER: Ensure we don't hang at 20%
+        // 2. Perform Direct-to-Cloud Upload
         const fileExt = assignment.uploadedFile.name.split('.').pop();
         const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
         const filePath = `submissions/${fileName}`;
@@ -1494,18 +1499,20 @@ export default function StudentDashboard() {
           ? `Bearer ${rawToken}`
           : '';
 
+        // 2. Single POST call to backend: Handles both Storage upload and Database record
         const res = await fetch('/api/upload', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+
             ...(authHeader ? { 'Authorization': authHeader } : {})
           },
-          body: JSON.stringify({
-            assignmentId: id,
-            file_url: publicUrl,
-            file_name: assignment.uploadedFile.name
-          })
+          body: formData
         });
+
+
+
+
+
 
         if (res.ok) {
           // ULTIMATE JSON SHIELD: Catching errors even on successful HTTP status
