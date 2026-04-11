@@ -54,3 +54,28 @@ export interface Notice {
   author_name?: string;
   image_url?: string;
 }
+
+export interface AttendanceMapping {
+  id: string;
+  faculty_id: string;
+  department: string;
+  year: string;
+  division: string;
+  subject_name: string;
+  total_lectures_planned: number;
+}
+
+export interface AttendanceAnalytics {
+  student_id: string;
+  mapping_id: string;
+  total_lectures_conducted: number;
+  lectures_attended: number;
+  attendance_percentage: number;
+  lectures_needed_for_75: number;
+  risk_level: 'excellent' | 'safe' | 'warning' | 'critical';
+  last_updated: string;
+  subject_class_mapping?: {
+    subject_name: string;
+    total_lectures_planned: number;
+  };
+}

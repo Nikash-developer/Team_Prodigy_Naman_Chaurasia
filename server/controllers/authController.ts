@@ -53,3 +53,24 @@ export const getMe = async (req: any, res: any) => {
         res.status(500).json({ error: 'Server error' });
     }
 };
+
+export const getStatsByEmail = async (req: any, res: any) => {
+    try {
+        const { email } = req.params;
+        // CASE-INSENSITIVE LOOKUP: Handles Tulsi@gmail.com vs tulsi@gmail.com
+        const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } }).select('eco_stats');
+        if (!user) {
+            return res.status(200).json({ 
+                eco_stats: {
+                    total_pages_saved: 0,
+                    total_water_saved: 0,
+                    total_co2_prevented: 0,
+                    total_trees_preserved: 0
+                }
+            });
+        }
+        res.json({ eco_stats: user.eco_stats });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+};

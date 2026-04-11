@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    password: { type: String, required: false },
     role: { type: String, enum: ['student', 'faculty', 'admin', 'hod'], required: true, lowercase: true },
     department: { type: String },
     avatar: { type: String },
@@ -16,4 +16,4 @@ const userSchema = new mongoose.Schema({
     eco_level: { type: Number, default: 1 }
 }, { timestamps: true });
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+export default (mongoose.models.User as mongoose.Model<any>) || mongoose.model<any>('User', userSchema);

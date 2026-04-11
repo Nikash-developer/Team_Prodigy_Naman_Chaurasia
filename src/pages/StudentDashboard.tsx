@@ -1,3 +1,4 @@
+import { StudentAttendancePage } from '../components/attendance/StudentAttendancePage';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -21,6 +22,9 @@ import { Notice, Assignment } from '../types';
 
 import { AssignmentSubmissionView } from '../components/AssignmentSubmissionView';
 import { allQuestionPapers } from '../lib/mockPapers';
+import { WhatIfSimulator } from '../components/attendance/WhatIfSimulator';
+import { PredictiveWarning } from '../components/attendance/PredictiveWarning';
+import { AttendanceAnalytics } from '../types';
 
 type Tab = 'dashboard' | 'courses' | 'eco-tracker' | 'settings' | 'papers' | 'notes' | 'assignment-submission' | 'attendance';
 
@@ -877,7 +881,12 @@ const SettingsOption: React.FC<{
 );
 
 export default function StudentDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+  const [recentEcoHistory, setRecentEcoHistory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('recent_eco_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
@@ -1434,6 +1443,8 @@ export default function StudentDashboard() {
         const formData = new FormData();
         formData.append('file', assignment.uploadedFile);
         formData.append('assignmentId', id.toString());
+        if (user?.id) formData.append('student_id', user.id);
+        if (user?.email) formData.append('student_email', user.email); // CRITICAL: Identity Bridge
 
         const rawToken = localStorage.getItem('token');
         const authHeader = rawToken && rawToken !== 'undefined' && rawToken !== 'null'
@@ -1448,6 +1459,23 @@ export default function StudentDashboard() {
 
         if (res.ok) {
           const result = await res.json();
+          
+          // Parallel update of Eco History
+          const newEntry = {
+            id: Date.now(),
+            fileName: assignment.uploadedFile.name,
+            impact: result.eco_update,
+            timestamp: new Date().toISOString()
+          };
+          
+          setRecentEcoHistory(prev => {
+            const updatedHistory = [newEntry, ...prev].slice(0, 10);
+            localStorage.setItem('recent_eco_history', JSON.stringify(updatedHistory));
+            return updatedHistory;
+          });
+
+          // Sync with Supabase Auth
+          await refreshUser();
           
           setAssignments(prev => prev.map(a => 
             a.id === id ? { ...a, status: 'submitted' } : a
@@ -1808,8 +1836,9 @@ export default function StudentDashboard() {
                   { id: 'courses', label: 'My Courses', icon: <BookOpen size={20} /> },
                   { id: 'papers', label: 'Question Papers', icon: <FileQuestion size={20} /> },
                   { id: 'notes', label: 'Student Notes', icon: <FileText size={20} /> },
-                  { id: 'assignment-submission', label: 'Assignments', icon: <Upload size={20} /> },
+                   { id: 'assignment-submission', label: 'Assignments', icon: <Upload size={20} /> },
                   { id: 'eco-tracker', label: 'Eco Tracker', icon: <TreePine size={20} /> },
+                  { id: 'attendance', label: 'Attendance', icon: <ShieldAlert size={20} /> },
                   { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
                 ].map((item) => (
                   <button
@@ -1853,185 +1882,7 @@ export default function StudentDashboard() {
       <main className="max-w-7xl mx-auto p-4 lg:p-8">
         <AnimatePresence mode="wait">
           {activeTab === 'attendance' && (
-            <motion.div
-              key="attendance"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              className="space-y-8 pb-32"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div>
-                  <h1 className={`text-4xl font-black ${t.heading}`}>Attendance Tracker</h1>
-                  <p className={`${t.muted} font-medium mt-1`}>Real-time tracking and predictive risk analysis.</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className={`px-6 py-4 ${t.card} rounded-[1.5rem] border ${t.border} shadow-sm flex items-center gap-4`}>
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                      <Clock size={20} />
-                    </div>
-                    <div>
-                      <p className={`text-[10px] font-black ${t.muted} uppercase`}>Overall Presence</p>
-                      <p className={`text-xl font-black ${t.heading}`}>{attendanceSummary?.overall_percentage?.toFixed(1) || 0}%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Summary Card */}
-                <div className="lg:col-span-4 space-y-8">
-                  <div className={`${t.card} p-10 rounded-[2.5rem] border ${t.border} shadow-sm relative overflow-hidden flex flex-col items-center text-center`}>
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 to-teal-500" />
-                    <h3 className={`text-lg font-black ${t.heading} mb-10`}>Academic Standing</h3>
-                    
-                    <div className="relative w-48 h-48 mb-8">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle
-                          cx="96" cy="96" r="88"
-                          fill="none" stroke="currentColor" strokeWidth="12"
-                          className="text-slate-100"
-                        />
-                        <motion.circle
-                          cx="96" cy="96" r="88"
-                          fill="none" stroke="currentColor" strokeWidth="12"
-                          strokeDasharray={552.92}
-                          initial={{ strokeDashoffset: 552.92 }}
-                          animate={{ strokeDashoffset: 552.92 - (552.92 * (attendanceSummary?.overall_percentage || 0)) / 100 }}
-                          className="text-emerald-500"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className={`text-4xl font-black ${t.heading}`}>{Math.round(attendanceSummary?.overall_percentage || 0)}%</span>
-                        <span className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>Current</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 w-full">
-                      <div className={`p-4 rounded-2xl ${attendanceSummary?.overall_percentage >= 75 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'} text-xs font-bold leading-relaxed`}>
-                        {attendanceSummary?.overall_percentage >= 75 
-                          ? "You are currently above the 75% threshold. Maintain this to stay safe." 
-                          : "Urgent: Your attendance is below the mandatory 75% threshold."}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Simulator Card - Task 3.3 */}
-                  <div className={`${t.card} p-8 rounded-[2.5rem] border ${t.border} shadow-sm group`}>
-                    <div className="flex items-center gap-3 mb-6">
-                      <Sparkles className="text-emerald-500" size={20} />
-                      <h3 className={`text-lg font-black ${t.heading}`}>What-If Simulator</h3>
-                    </div>
-                    <p className={`text-xs font-medium ${t.muted} mb-8`}>Predict your attendance if you miss future lectures.</p>
-                    
-                    <div className="space-y-8">
-                      {attendanceSummary?.subjects?.map((sub: any) => (
-                        <div key={sub.id} className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span className={`text-xs font-black ${t.heading}`}>{sub.name}</span>
-                            <span className={`text-xs font-bold ${simulatedMisses[sub.id] ? 'text-red-500' : t.muted}`}>
-                              -{simulatedMisses[sub.id] || 0} lectures
-                            </span>
-                          </div>
-                          <input 
-                            type="range" min="0" max="10" step="1"
-                            value={simulatedMisses[sub.id] || 0}
-                            onChange={(e) => setSimulatedMisses(prev => ({ ...prev, [sub.id]: parseInt(e.target.value) }))}
-                            className="w-full accent-emerald-500 h-1.5 bg-slate-100 rounded-full appearance-none cursor-pointer"
-                          />
-                          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                            <span className={t.muted}>Predicted</span>
-                            <span className={`${(sub.percentage - (simulatedMisses[sub.id] || 0) * 2) < 75 ? 'text-red-500' : 'text-emerald-500'} group-hover:scale-110 transition-transform`}>
-                              {Math.max(0, sub.percentage - (simulatedMisses[sub.id] || 0) * 2).toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subject List */}
-                <div className="lg:col-span-8 space-y-8">
-                  <div className={`${t.card} rounded-[2.5rem] border ${t.border} shadow-sm overflow-hidden`}>
-                    <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-                      <h3 className={`text-xl font-black ${t.heading}`}>Course Breakdown</h3>
-                      <RefreshCcw size={18} className={`${t.muted} hover:rotate-180 transition-all cursor-pointer`} />
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className={`bg-slate-50/50 text-[10px] font-black ${t.muted} uppercase tracking-[0.2em]`}>
-                            <th className="px-8 py-5">Subject</th>
-                            <th className="px-8 py-5">Lectures</th>
-                            <th className="px-8 py-5">Percentage</th>
-                            <th className="px-8 py-5">Risk Level</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {attendanceSummary?.subjects?.map((sub: any) => (
-                            <tr key={sub.id} className="hover:bg-slate-50/30 transition-colors group">
-                              <td className="px-8 py-6">
-                                <p className={`text-sm font-black ${t.heading}`}>{sub.name}</p>
-                                <p className={`text-[10px] font-bold ${t.muted}`}>Theory + Tutorial</p>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-sm font-black ${t.heading}`}>{sub.lectures_attended}</span>
-                                  <span className={`text-xs font-bold ${t.muted}`}>/ {sub.total_conducted}</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <span className={`text-sm font-black ${sub.percentage < 75 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                  {sub.percentage.toFixed(1)}%
-                                </span>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-3">
-                                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                    sub.percentage < 75 ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'
-                                  }`}>
-                                    {sub.risk}
-                                  </span>
-                                  {sub.percentage < 75 && (
-                                    <div className="group/tip relative">
-                                      <AlertCircle size={16} className="text-red-400" />
-                                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-3 bg-slate-900 text-white text-[10px] rounded-xl opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none z-50">
-                                        Need {sub.lectures_needed} more lectures to reach 75%
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Notification Alerts - Task 3.4 */}
-                  {attendanceSummary?.subjects?.some((s: any) => s.percentage < 75) && (
-                    <motion.div 
-                      initial={{ x: 20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      className="bg-red-50 border border-red-100 p-8 rounded-[2rem] flex items-start gap-6"
-                    >
-                      <div className="p-4 bg-red-500 text-white rounded-2xl shadow-lg shadow-red-500/20">
-                        <ShieldAlert size={24} />
-                      </div>
-                      <div>
-                        <h4 className="text-red-600 font-extrabold text-lg">Critical Attendance Alert</h4>
-                        <p className="text-red-500/80 text-sm font-medium mt-1 leading-relaxed">
-                          Your attendance in <span className="font-black underline">3 subjects</span> has fallen below the mandatory 75%. This may lead to debarment from final examinations. Please contact your HOD immediately.
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
+            <StudentAttendancePage user={{ ...user, ...studentProfile }} theme={t} attendanceSummary={attendanceSummary} />
           )}
 
           {activeTab === 'dashboard' && (
@@ -2190,7 +2041,32 @@ export default function StudentDashboard() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.4 }}
             >
-              <AssignmentSubmissionView theme={t} />
+              <AssignmentSubmissionView 
+                theme={t} 
+                onUploadSuccess={(fileName, impact) => {
+                  const newEntry = {
+                    id: Date.now(),
+                    fileName,
+                    impact,
+                    timestamp: new Date().toISOString()
+                  };
+                  setRecentEcoHistory(prev => {
+                    const updated = [newEntry, ...prev].slice(0, 10);
+                    localStorage.setItem('recent_eco_history', JSON.stringify(updated));
+                    return updated;
+                  });
+                  
+                  // Trigger Confetti Celebration for Eco Impact
+                  import('canvas-confetti').then(confetti => {
+                    confetti.default({
+                      particleCount: 150,
+                      spread: 80,
+                      origin: { y: 0.6 },
+                      colors: ['#2B8A3E', '#40C057', '#37B24D', '#22C55E']
+                    });
+                  });
+                }}
+              />
             </motion.div>
           )}
 
@@ -2306,7 +2182,7 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard
@@ -2338,6 +2214,74 @@ export default function StudentDashboard() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className={`${t.card} p-8 rounded-[2.5rem] border ${t.border} shadow-sm`}>
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h3 className={`text-xl font-black ${t.heading}`}>Recent Eco-Submissions</h3>
+                      <p className={`text-xs ${t.muted} font-bold uppercase tracking-widest mt-1`}>Your contribution history</p>
+                    </div>
+                    <Leaf className="text-primary opacity-20" size={32} />
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {recentEcoHistory.length > 0 ? (
+                      recentEcoHistory.map((item, idx) => (
+                        <motion.div 
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          key={item.id} 
+                          className={`p-4 ${t.search} rounded-2xl border ${t.border} flex items-center justify-between group hover:border-primary/30 transition-all`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm group-hover:rotate-12 transition-transform">
+                              <FileText size={20} />
+                            </div>
+                            <div>
+                              <p className={`text-sm font-black ${t.heading} truncate max-w-[150px]`}>{item.fileName}</p>
+                              <p className={`text-[10px] font-bold ${t.muted}`}>{new Date(item.timestamp).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-primary">+{item.impact.pages} Pgs</p>
+                            <p className={`text-[10px] font-black text-blue-500`}>{item.impact.water_saved}L Water</p>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="py-12 text-center text-slate-400">
+                        <CloudOff className={`mx-auto mb-4 opacity-20`} size={48} />
+                        <p className={`text-sm font-bold`}>No recent submissions yet.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`${t.card} p-8 rounded-[2.5rem] border ${t.border} shadow-sm bg-gradient-to-br from-primary/5 to-transparent relative overflow-hidden`}>
+                  <div className="relative z-10 h-full flex flex-col justify-between">
+                    <div>
+                      <h3 className={`text-xl font-black ${t.heading}`}>Environmental Tip</h3>
+                      <p className={`mt-4 text-sm font-medium ${t.text} leading-relaxed opacity-80`}>
+                        By submitting your assignments digitally, you've already helped preserve campus resources! Producing paper requires 2,700L water per ton.
+                      </p>
+                    </div>
+                    <div className={`mt-8 p-6 bg-white rounded-3xl shadow-sm border ${t.border}`}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                          <Trophy size={24} />
+                        </div>
+                        <div>
+                          <p className={`text-sm font-black ${t.heading}`}>Eco-Warrior Status</p>
+                          <p className={`text-xs font-bold ${t.muted}`}>You are in the top 15% of your class</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <TreePine className="absolute bottom-[-20px] right-[-20px] size-48 text-primary opacity-5 rotate-12" />
+                </div>
+              </div>
+
               {/* Enhanced Analytics Section */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Monthly Contribution Chart */}
@@ -2347,44 +2291,50 @@ export default function StudentDashboard() {
                       <h3 className={`text-xl font-black ${t.heading}`}>Projected Carbon Savings</h3>
                       <p className={`text-xs ${t.muted} font-bold uppercase tracking-widest mt-1`}>6-Month Trend Analysis</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 text-left">
                       <button className="bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-2 text-slate-400 hover:text-primary transition-colors border border-slate-100">Export PDF</button>
-                      <select className="bg-slate-50 border-none text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-2 focus:ring-0 text-slate-600 outline-none cursor-pointer">
-                        <option>Last 6 Months</option>
-                        <option>This Year</option>
-                      </select>
                     </div>
                   </div>
                   <div className="h-64 flex items-end justify-between px-4 z-10 relative gap-3">
-                    {[
-                      { m: 'Jan', v: 45, co2: '2.1kg' }, { m: 'Feb', v: 62, co2: '3.0kg' }, { m: 'Mar', v: 85, co2: '4.2kg' },
-                      { m: 'Apr', v: 48, co2: '2.4kg' }, { m: 'May', v: 92, co2: '4.6kg' }, { m: 'Jun', v: 75, co2: '3.8kg' }
-                    ].map((d, i) => (
-                      <div key={i} className="flex flex-col items-center gap-3 flex-1 group/bar">
-                        <div className="w-full relative flex flex-col justify-end h-48">
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: `${d.v}%` }}
-                            transition={{ duration: 1, delay: i * 0.1, type: "spring" }}
-                            className={`w-full rounded-t-2xl transition-all duration-500 overflow-hidden relative ${i === 4 ? 'bg-gradient-to-t from-[#1b612c] to-[#2B8A3E] shadow-lg shadow-[#2B8A3E]/30' : `${t.search} group-hover/bar:opacity-80`}`}
-                          >
+                    {(() => {
+                      const totalPages = user?.eco_stats?.total_pages_saved || 0;
+                      // Generate a dynamic trend based on real totals
+                      const trend = [
+                        { m: 'Jan', v: Math.max(10, totalPages * 0.15), co2: `${(totalPages * 0.15 * 0.046).toFixed(1)}kg` },
+                        { m: 'Feb', v: Math.max(15, totalPages * 0.25), co2: `${(totalPages * 0.25 * 0.046).toFixed(1)}kg` },
+                        { m: 'Mar', v: Math.max(25, totalPages * 0.40), co2: `${(totalPages * 0.40 * 0.046).toFixed(1)}kg` },
+                        { m: 'Apr', v: Math.max(35, totalPages * 0.60), co2: `${(totalPages * 0.60 * 0.046).toFixed(1)}kg` },
+                        { m: 'May', v: Math.max(45, totalPages * 0.80), co2: `${(totalPages * 0.80 * 0.046).toFixed(1)}kg` },
+                        { m: 'Jun', v: Math.max(60, totalPages * 1.0), co2: `${(totalPages * 1.0 * 0.046).toFixed(1)}kg` }
+                      ];
+                      
+                      return trend.map((d, i) => (
+                        <div key={i} className="flex flex-col items-center gap-3 flex-1 group/bar">
+                          <div className="w-full relative flex flex-col justify-end h-48">
                             <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent"
-                            />
-                          </motion.div>
-                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] px-3 py-2 rounded-xl opacity-0 group-hover/bar:opacity-100 transition-all pointer-events-none mb-2 font-black transform -translate-y-2 group-hover/bar:translate-y-0 shadow-xl z-20 whitespace-nowrap">
-                            <div className="flex flex-col items-center">
-                              <span>{d.v} Pages</span>
-                              <span className="text-primary text-[8px]">{d.co2} CO2 Saving</span>
+                              initial={{ height: 0 }}
+                              animate={{ height: `${Math.min(100, (d.v / Math.max(100, totalPages)) * 100)}%` }}
+                              transition={{ duration: 1, delay: i * 0.1, type: "spring" }}
+                              className={`w-full rounded-t-2xl transition-all duration-500 overflow-hidden relative ${i === 5 ? 'bg-gradient-to-t from-[#1b612c] to-[#2B8A3E] shadow-lg shadow-[#2B8A3E]/30' : `${t.search} group-hover/bar:opacity-80`}`}
+                            >
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent"
+                              />
+                            </motion.div>
+                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] px-3 py-2 rounded-xl opacity-0 group-hover/bar:opacity-100 transition-all pointer-events-none mb-2 font-black transform -translate-y-2 group-hover/bar:translate-y-0 shadow-xl z-20 whitespace-nowrap">
+                              <div className="flex flex-col items-center">
+                                <span>{Math.round(d.v)} Pages</span>
+                                <span className="text-primary text-[8px]">{d.co2} CO2 Saving</span>
+                              </div>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
                             </div>
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
                           </div>
+                          <span className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>{d.m}</span>
                         </div>
-                        <span className={`text-[10px] font-black ${t.muted} uppercase tracking-widest`}>{d.m}</span>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                   <div className="absolute inset-0 z-0 pointer-events-none flex flex-col justify-between pt-32 pb-16 px-8">
                     {[1, 2, 3, 4].map(l => <div key={l} className={`border-b ${t.border} w-full`} />)}

@@ -13,16 +13,22 @@ export const calculateAttendancePercentage = async (studentId: string, mappingId
 
   if (condError) throw condError;
 
-  // 2. Get attended lectures for this student
+  // 2. Get attended lectures for this student (For the given mapping)
+  const { data: lectures } = await supabase
+    .from('lectures_conducted')
+    .select('id')
+    .eq('mapping_id', mappingId);
+  
+  const lectureIds = lectures?.map(l => l.id) || [];
+
   const { count: attended, error: attError } = await supabase
     .from('attendance_records')
     .select('id', { count: 'exact', head: true })
     .eq('student_id', studentId)
     .eq('status', 'present')
-    .innerJoin('lectures_conducted', 'lecture_id', 'id')
-    .eq('lectures_conducted.mapping_id', mappingId);
+    .in('lecture_id', lectureIds.length > 0 ? lectureIds : ['uuid-placeholder']);
 
-  if (attError) throw attError;
+  if (attError && lectureIds.length > 0) throw attError;
 
   const totalCount = total || 0;
   const attendedCount = attended || 0;

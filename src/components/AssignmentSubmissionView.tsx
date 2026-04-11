@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
+import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import {
     Leaf, Clock, Upload, FileText, CheckCircle2,
@@ -89,7 +91,13 @@ const mockUpcomingData: UpcomingAssignment[] = [
     }
 ];
 
-export const AssignmentSubmissionView: React.FC<{ theme: any }> = ({ theme: t }) => {
+interface AssignmentSubmissionViewProps {
+    theme: any;
+    onUploadSuccess?: (fileName: string, impact: any) => void;
+}
+
+export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> = ({ theme: t, onUploadSuccess }) => {
+    const { user, refreshUser } = useAuth();
     const [assignments, setAssignments] = useState<UpcomingAssignment[]>(mockUpcomingData);
     const [selectedId, setSelectedId] = useState<number>(() => {
         const pending = mockUpcomingData
@@ -111,23 +119,22 @@ export const AssignmentSubmissionView: React.FC<{ theme: any }> = ({ theme: t })
     const uploadSectionRef = React.useRef<HTMLElement>(null);
 
     useEffect(() => {
+        // Skip reset if we are currently uploading or if the status hasn't actually changed to pending
+        if (uploadStatus === 'uploading') return;
+
         if (selectedAssignment.status === 'submitted') {
             setUploadStatus('success');
             setPlagiarismStatus('completed');
-            setPlagiarismPercent(Math.floor(Math.random() * 8) + 2);
-            setCo2Saved(Math.max(1, Math.ceil((selectedAssignment.uploadedFile?.size || 102400) / 51200)) * 0.5);
-        } else if (selectedAssignment.uploadedFile) {
-            setUploadStatus('success');
-            setPlagiarismStatus('completed');
-            setPlagiarismPercent(Math.floor(Math.random() * 8) + 2);
-            setCo2Saved(Math.max(1, Math.ceil((selectedAssignment.uploadedFile?.size || 102400) / 51200)) * 0.5);
+            // We use a stable calculation if available, or random if just viewing an old one
+            setPlagiarismPercent(prev => prev > 0 ? prev : Math.floor(Math.random() * 8) + 2);
+            setCo2Saved(prev => prev > 0 ? prev : Math.max(1, Math.ceil((selectedAssignment.uploadedFile?.size || 102400) / 51200)) * 0.5);
         } else {
             setUploadStatus('idle');
             setPlagiarismStatus('ready');
             setPlagiarismPercent(0);
             setCo2Saved(0);
         }
-    }, [selectedAssignment.id]);
+    }, [selectedAssignment.id, selectedAssignment.status]);
 
     useEffect(() => {
         const updateTimer = () => {
@@ -159,6 +166,68 @@ export const AssignmentSubmissionView: React.FC<{ theme: any }> = ({ theme: t })
         validateAndSetFile(droppedFile);
     };
 
+    const handleActualUpload = async (selectedFile: File) => {
+        setUploadStatus('uploading');
+        setUploadProgress(20);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('assignmentId', selectedAssignment.id.toString());
+            if (user?.id) formData.append('student_id', user.id);
+            if (user?.email) formData.append('student_email', user.email);
+
+            const rawToken = localStorage.getItem('token');
+            const authHeader = rawToken && rawToken !== 'undefined' && rawToken !== 'null'
+                ? `Bearer ${rawToken}`
+                : '';
+
+            setUploadProgress(45);
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: authHeader ? { 'Authorization': authHeader } : {},
+                body: formData
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Upload failed');
+            }
+
+            const result = await res.json();
+            setUploadProgress(100);
+            setUploadStatus('success');
+
+            // Update local assignment state
+            setAssignments(prevArr => prevArr.map(a =>
+                a.id === selectedAssignment.id
+                    ? { ...a, status: 'submitted', uploadedFile: selectedFile }
+                    : a
+            ));
+
+            // Synchronize with parallel stats
+            if (onUploadSuccess) {
+                onUploadSuccess(selectedFile.name, result.eco_update);
+            }
+
+            // Global refresh of profile stats (This now uses the Hybrid MongoDB Bridge!)
+            await refreshUser();
+
+            // Plagiarism simulation
+            setPlagiarismPercent(result.plagiarism_score || Math.floor(Math.random() * 10));
+            setPlagiarismStatus('completed');
+            
+            // Real CO2 saved from backend
+            setCo2Saved(result.eco_update?.co2_prevented || 0);
+
+        } catch (error: any) {
+            console.error("Upload Error:", error);
+            setUploadStatus('error');
+            alert(`Submission failed: ${error.message}`);
+        }
+    };
+
     const validateAndSetFile = (selectedFile: File) => {
         if (!selectedFile) return;
         const allowedFormats = ['.pdf', '.docx'];
@@ -171,60 +240,11 @@ export const AssignmentSubmissionView: React.FC<{ theme: any }> = ({ theme: t })
             alert("File size exceeds 25MB limit.");
             return;
         }
-        simulateUpload(selectedFile);
-    };
-
-    const simulateUpload = (selectedFile: File) => {
-        setUploadStatus('uploading');
-        setUploadProgress(0);
-        const interval = setInterval(() => {
-            setUploadProgress(prev => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setUploadStatus('success');
-
-                    // Update global assignment state
-                    setAssignments(prevArr => prevArr.map(a =>
-                        a.id === selectedAssignment.id
-                            ? { ...a, status: 'submitted', uploadedFile: selectedFile }
-                            : a
-                    ));
-
-                    triggerPlagiarismScan();
-                    calculateEcoImpact(selectedFile);
-                    return 100;
-                }
-                return prev + 10;
-            });
-        }, 100);
-    };
-
-    const triggerPlagiarismScan = () => {
-        setPlagiarismStatus('scanning');
-        setPlagiarismPercent(0);
-        setTimeout(() => {
-            const interval = setInterval(() => {
-                setPlagiarismPercent(prev => {
-                    const target = Math.floor(Math.random() * 15) + 2; // Random safe %
-                    if (prev >= target) {
-                        clearInterval(interval);
-                        setPlagiarismStatus('completed');
-                        return target;
-                    }
-                    return prev + 1;
-                });
-            }, 100);
-        }, 1000);
+        handleActualUpload(selectedFile);
     };
 
     const calculateEcoImpact = (selectedFile: File) => {
-        // We simulate the page count based on file size for the preview, 
-        // but the real calculation happens on the server during upload.
-        const estimatedPages = Math.max(1, Math.ceil(selectedFile.size / 51200));
-        const waterSaved = estimatedPages * 10;
-        const co2SavedValue = estimatedPages * 4.64;
-        
-        setCo2Saved(co2SavedValue);
+        // Real logic handled by handleActualUpload using backend response
     };
 
     const formatNumber = (n: number) => n.toString().padStart(2, '0');

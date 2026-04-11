@@ -9,6 +9,7 @@ import cors from 'cors';
 // MongoDB setup
 import { connectDB } from './server/config/db';
 import { seedDB } from './server/seed';
+import { initCronJobs } from './server/utils/cronJobs';
 
 // Route imports
 import authRoutes from './server/routes/authRoutes';
@@ -73,6 +74,7 @@ if (process.env.NODE_ENV !== "production") {
 
         await connectDB();
         await seedDB();
+        initCronJobs();
 
         console.log("Vite development server integration ready.");
     };
@@ -104,6 +106,9 @@ if (process.env.VERCEL !== "1") {
 
     server.listen(PORT as number, "0.0.0.0", () => {
         console.log(`Server running on http://localhost:${PORT}`);
+        if (process.env.NODE_ENV === "production") {
+             initCronJobs(); // Init here if it's production standalone
+        }
     });
 }
 

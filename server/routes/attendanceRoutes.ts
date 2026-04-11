@@ -1,3 +1,4 @@
+import express from 'express';
 import { getFacultyMappings, markAttendance, getStudentSummary, getDefaulters } from '../controllers/attendanceController';
 
 const router = express.Router();
