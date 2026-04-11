@@ -45,7 +45,7 @@ export const uploadPaper = async (req: any, res: any) => {
 
 export const downloadPaper = async (req: any, res: any) => {
     try {
-        const paper = await QuestionPaper.findById(req.params.id);
+        const paper = await (QuestionPaper as any).findById(req.params.id);
         if (!paper || !paper.fileData) {
             return res.status(404).json({ error: 'File not found' });
         }

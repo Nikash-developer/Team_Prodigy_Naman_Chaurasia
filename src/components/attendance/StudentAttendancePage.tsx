@@ -4,7 +4,7 @@ import {
   Calendar, Clock, AlertTriangle, CheckCircle2, XCircle,
   ChevronRight, ArrowLeft, BarChart3, TrendingUp, TrendingDown,
   Sparkles, FileText, MapPin, Bell, Info, Share2, Printer,
-  LayoutDashboard, BookOpen, GraduationCap, Leaf
+  LayoutDashboard, BookOpen, GraduationCap, Leaf, Bot
 } from 'lucide-react';
 import { WhatIfSimulator } from './WhatIfSimulator';
 import { PredictiveWarning } from './PredictiveWarning';
