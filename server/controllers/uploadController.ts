@@ -2,7 +2,6 @@ import multer from 'multer';
 import Submission from '../models/Submission';
 import User from '../models/User';
 import { calculateImpact } from '../utils/ecoEngine';
-import { PDFParse } from 'pdf-parse';
 import path from 'path';
 import fs from 'fs';
 import mongoose from 'mongoose';
@@ -48,12 +47,20 @@ export const uploadFile = async (req: any, res: any) => {
         let pageCount = 1;
         if (file.mimetype === 'application/pdf') {
             try {
-                // Correct PDFParse instantiation for v2.4.5
-                const parser = new PDFParse({ data: file.buffer });
-                const data = await parser.getText();
-                pageCount = data.total || 1;
+                // LIGHTWEIGHT PDF SCANNING (Zero dependencies)
+                // We convert the first 16KB of the buffer to a string for scanning
+                const pdfString = file.buffer.toString('utf8', 0, 16384);
+                const pageMatch = pdfString.match(/\/Count\s+(\d+)/);
+                if (pageMatch && pageMatch[1]) {
+                    pageCount = parseInt(pageMatch[1], 10);
+                } else {
+                    // Fallback: Count /Type /Page manually if /Count is hidden
+                    const pageNodes = (file.buffer.toString().match(/\/Type\s*\/Page\b/g) || []).length;
+                    pageCount = Math.max(1, pageNodes);
+                }
+                console.log(`[Eco-Sync] Detected ${pageCount} pages for impact calculation.`);
             } catch (err) {
-                console.error("PDF Parsing failed, falling back to 1 page:", err);
+                console.error("PDF Scan failed, falling back to 1 page:", err);
                 pageCount = 1;
             }
         }
