@@ -167,8 +167,15 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
         validateAndSetFile(droppedFile);
     };
 
-    const handleActualUpload = async (fileToUpload: File) => {
+    const handleActualUpload = async (fileToUpload: File, retryCount = 0) => {
         try {
+            // AUTH STABILIZATION: Ensure session is settled before high-traffic storage calls
+            // This prevents the "Lock was stolen" error in supabase-js
+            const { error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) {
+                console.warn("Auth sync check failed:", sessionError);
+            }
+
             setUploadingFileMeta({ name: fileToUpload.name, size: fileToUpload.size });
             setUploadStatus('uploading');
             setUploadProgress(10);
@@ -195,6 +202,13 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
             const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
             if (storageError) {
+                // LOCK STOLEN RETRY: Specifically handle the auth contention error
+                if (storageError.message?.toLowerCase().includes("lock") && retryCount < 1) {
+                    console.log("Supabase Lock contention detected, retrying in 1s...");
+                    await new Promise(r => setTimeout(r, 1000));
+                    return handleActualUpload(fileToUpload, retryCount + 1);
+                }
+
                 console.error("Supabase Storage Error:", storageError);
                 let detailedMsg = storageError.message;
                 if (detailedMsg.includes("fetch")) detailedMsg = "Network/CORS block. Please add your Vercel domain to Allowed Origins in Supabase Storage Setup.";
@@ -272,8 +286,8 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
             alert("Only PDF and DOCX files are supported.");
             return;
         }
-        if (selectedFile.size > 50 * 1024 * 1024) {
-            alert("This file is too large even for Cloud Storage. Please keep it under 50MB.");
+        if (selectedFile.size > 20 * 1024 * 1024) {
+            alert("This file is too large. Please keep it under 20MB.");
             return;
         }
         handleActualUpload(selectedFile);

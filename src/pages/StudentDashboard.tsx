@@ -1440,12 +1440,17 @@ export default function StudentDashboard() {
         return;
       }
 
-      if (assignment.uploadedFile.size > 50 * 1024 * 1024) {
-        alert("This file is too large even for Cloud Storage. Please keep it under 50MB.");
+      if (assignment.uploadedFile.size > 20 * 1024 * 1024) {
+        alert("This file is too large. Please keep it under 20MB.");
         return;
       }
 
-      try {        // TIMEOUT WRAPPER: Ensure we don't hang at 20%
+      try {
+        // AUTH STABILIZATION: Resolve "Lock stolen" auth contention
+        const { error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) console.warn("Dashboard Auth sync sync failed:", sessionError);
+
+        // TIMEOUT WRAPPER: Ensure we don't hang at 20%
         const fileExt = assignment.uploadedFile.name.split('.').pop();
         const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
         const filePath = `submissions/${fileName}`;
@@ -1464,6 +1469,13 @@ export default function StudentDashboard() {
         const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
 
         if (storageError) {
+          // LOCK STOLEN RETRY
+          if (storageError.message?.toLowerCase().includes("lock")) {
+            console.log("Dashboard lock contention, retrying in 1s...");
+            await new Promise(r => setTimeout(r, 1000));
+            return handleAssignmentAction(id, action);
+          }
+
           console.error("Supabase Storage Error:", storageError);
           let detailedMsg = storageError.message;
           if (detailedMsg.includes("fetch")) detailedMsg = "Network/CORS block. Please add your Vercel domain to Allowed Origins in Supabase Storage Setup.";

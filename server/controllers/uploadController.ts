@@ -12,7 +12,7 @@ const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const storage = multer.memoryStorage();
-export const upload = multer({ storage, limits: { fileSize: 40 * 1024 * 1024 } }); // Local 40MB Limit
+export const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // Enforced 20MB Limit
 
 export const uploadFile = async (req: any, res: any) => {
     try {
