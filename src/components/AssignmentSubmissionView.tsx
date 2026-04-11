@@ -191,7 +191,21 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
             });
 
             if (!res.ok) {
-                const errorData = await res.json();
+                if (res.status === 413) {
+                    throw new Error('File is too large for the server. Vercel limit is 4.5MB total. Please compress your PDF below 3.8MB and try again.');
+                }
+                
+                // Try to parse JSON error, fallback to text if not JSON
+                let errorData;
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    errorData = await res.json();
+                } else {
+                    const textError = await res.text();
+                    console.error("Non-JSON Error Response:", textError);
+                    errorData = { error: 'Server returned an unexpected error format. It might be due to a large file or timeout.' };
+                }
+                
                 throw new Error(errorData.error || 'Upload failed');
             }
 
@@ -236,8 +250,8 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
             alert("Only PDF and DOCX files are supported.");
             return;
         }
-        if (selectedFile.size > 4.5 * 1024 * 1024) {
-            alert("File size exceeds Vercel's 4.5MB limit for hobby projects. Please compress your PDF and try again.");
+        if (selectedFile.size > 3.8 * 1024 * 1024) {
+            alert("This file is likely too large for Vercel's 4.5MB total request limit. Please compress your PDF below 3.8MB and try again.");
             return;
         }
         handleActualUpload(selectedFile);

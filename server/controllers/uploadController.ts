@@ -7,7 +7,7 @@ import fs from 'fs';
 import mongoose from 'mongoose';
 
 const storage = multer.memoryStorage();
-export const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } }); // 25MB
+export const upload = multer({ storage, limits: { fileSize: 4.5 * 1024 * 1024 } }); // Vercel limit is 4.5MB total
 
 export const uploadFile = async (req: any, res: any) => {
     try {
