@@ -107,13 +107,14 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
     });
     const selectedAssignment = assignments.find(a => a.id === selectedId) || assignments[0];
 
-    const [uploadProgress, setUploadProgress] = useState(0);
+    const [isDragOver, setIsDragOver] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadingFileMeta, setUploadingFileMeta] = useState<{ name: string, size: number } | null>(null);
     const [plagiarismStatus, setPlagiarismStatus] = useState<'ready' | 'scanning' | 'completed'>('ready');
     const [plagiarismPercent, setPlagiarismPercent] = useState(0);
     const [co2Saved, setCo2Saved] = useState(0);
     const [timeLeft, setTimeLeft] = useState({ days: 0, hrs: 0, min: 0, sec: 0 });
-    const [isDragOver, setIsDragOver] = useState(false);
     const [showFeedbackModal, setShowFeedbackModal] = useState<Feedback | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const uploadSectionRef = React.useRef<HTMLElement>(null);
@@ -166,28 +167,38 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
         validateAndSetFile(droppedFile);
     };
 
-    const handleActualUpload = async (selectedFile: File) => {
+    const handleActualUpload = async (fileToUpload: File) => {
         try {
+            setUploadingFileMeta({ name: fileToUpload.name, size: fileToUpload.size });
             setUploadStatus('uploading');
             setUploadProgress(10);
 
-            // 1. Upload to Supabase Storage first (Bypasses Vercel Limit)
-            const fileExt = selectedFile.name.split('.').pop();
+            // 1. Upload to Supabase Storage (Bypasses Vercel Limit)
+            const fileExt = fileToUpload.name.split('.').pop();
             const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
             const filePath = `submissions/${fileName}`;
 
             setUploadProgress(20);
             
-            const { error: storageError, data: storageData } = await supabase.storage
+            // TIMEOUT & RACE: Ensure we don't hang at 20%
+            const uploadPromise = supabase.storage
                 .from('assignments')
-                .upload(filePath, selectedFile, {
+                .upload(filePath, fileToUpload, {
                     cacheControl: '3600',
                     upsert: false
                 });
 
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Cloud Storage Timeout (45s). This often means your CORS settings in Supabase are blocking the connection.")), 45000)
+            );
+
+            const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+
             if (storageError) {
                 console.error("Supabase Storage Error:", storageError);
-                throw new Error(`Cloud Storage Error: ${storageError.message}. Make sure the 'assignments' bucket exists and is public.`);
+                let detailedMsg = storageError.message;
+                if (detailedMsg.includes("fetch")) detailedMsg = "Network/CORS block. Please add your domain to Allowed Origins in Supabase Storage settings.";
+                throw new Error(`Cloud Error: ${detailedMsg}`);
             }
 
             setUploadProgress(60);
@@ -197,7 +208,7 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
                 .from('assignments')
                 .getPublicUrl(filePath);
 
-            // 3. Send URL to Backend (Metadata only, very small payload)
+            // 3. Send URL to Backend (Metadata only)
             const rawToken = localStorage.getItem('token');
             const authHeader = rawToken && rawToken !== 'undefined' && rawToken !== 'null'
                 ? `Bearer ${rawToken}`
@@ -212,19 +223,13 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
                 body: JSON.stringify({
                     assignmentId: selectedAssignment.id,
                     file_url: publicUrl,
-                    file_name: selectedFile.name
+                    file_name: fileToUpload.name
                 })
             });
 
             if (!res.ok) {
-                const contentType = res.headers.get("content-type");
-                let errorData;
-                if (contentType && contentType.includes("application/json")) {
-                    errorData = await res.json();
-                } else {
-                    errorData = { error: 'Backend failed to record the submission URL.' };
-                }
-                throw new Error(errorData.error || 'Upload failed');
+                const text = await res.text();
+                throw new Error(text.substring(0, 100) || 'Stateless sync failed');
             }
 
             const result = await res.json();
@@ -234,29 +239,23 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
             // Update local assignment state
             setAssignments(prevArr => prevArr.map(a =>
                 a.id === selectedAssignment.id
-                    ? { ...a, status: 'submitted', uploadedFile: selectedFile }
+                    ? { ...a, status: 'submitted', uploadedFile: fileToUpload }
                     : a
             ));
 
-            // Synchronize with parallel stats
             if (onUploadSuccess) {
-                onUploadSuccess(selectedFile.name, result.eco_update);
+                onUploadSuccess(fileToUpload.name, result.eco_update);
             }
 
-            // Global refresh of profile stats (This now uses the Hybrid MongoDB Bridge!)
             await refreshUser();
-
-            // Plagiarism simulation
             setPlagiarismPercent(result.plagiarism_score || Math.floor(Math.random() * 10));
             setPlagiarismStatus('completed');
-            
-            // Real CO2 saved from backend
             setCo2Saved(result.eco_update?.co2_prevented || 0);
 
         } catch (error: any) {
-            console.error("Upload Error:", error);
+            console.error("Upload Critical Error:", error);
             setUploadStatus('error');
-            alert(`Submission failed: ${error.message}`);
+            alert(`Submission Error: ${error.message}`);
         }
     };
 
@@ -484,8 +483,8 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
                                                         <FileText size={24} />
                                                     </div>
                                                     <div className="text-left flex-1 min-w-0">
-                                                        <p className={`font-bold ${t.heading} truncate`}>{selectedAssignment.uploadedFile?.name}</p>
-                                                        <p className={`text-[10px] font-bold ${t.muted} uppercase`}>{((selectedAssignment.uploadedFile?.size || 0) / 1024 / 1024).toFixed(2)} MB</p>
+                                                        <p className={`font-bold ${t.heading} truncate`}>{uploadingFileMeta?.name || selectedAssignment.uploadedFile?.name}</p>
+                                                        <p className={`text-[10px] font-bold ${t.muted} uppercase`}>{((uploadingFileMeta?.size || selectedAssignment.uploadedFile?.size || 0) / 1024 / 1024).toFixed(2)} MB</p>
                                                     </div>
                                                     <button onClick={handleDeleteFile} className={`p-2 hover:${t.card} rounded-full ${t.muted} hover:text-red-500 transition-colors pointer-events-auto`}>
                                                         <X size={18} />

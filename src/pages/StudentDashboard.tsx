@@ -1445,22 +1445,29 @@ export default function StudentDashboard() {
         return;
       }
 
-      try {
-        // 1. Upload to Supabase Storage first (Bypasses Vercel Limit)
+      try {        // TIMEOUT WRAPPER: Ensure we don't hang at 20%
         const fileExt = assignment.uploadedFile.name.split('.').pop();
         const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
         const filePath = `submissions/${fileName}`;
 
-        const { error: storageError } = await supabase.storage
+        const uploadPromise = supabase.storage
           .from('assignments')
           .upload(filePath, assignment.uploadedFile, {
             cacheControl: '3600',
             upsert: false
           });
 
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Cloud Storage Timeout (45s). This often means your CORS settings in Supabase are blocking the connection.")), 45000)
+        );
+
+        const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+
         if (storageError) {
           console.error("Supabase Storage Error:", storageError);
-          throw new Error(`Cloud Storage Error: ${storageError.message}. Ensure 'assignments' bucket is public.`);
+          let detailedMsg = storageError.message;
+          if (detailedMsg.includes("fetch")) detailedMsg = "Network/CORS block. Please add your domain to Allowed Origins in Supabase Storage settings.";
+          throw new Error(`Cloud Error: ${detailedMsg}`);
         }
 
         // 2. Get Public URL
