@@ -17,7 +17,7 @@
   ],
   "functions": {
     "api/index.ts": {
-      "includeFiles": "server/**",
+      "includeFiles": "server/**,server.ts",
       "excludeFiles": "{node_modules/.cache/**,dist/**,uploads/**,Public/**}"
     }
   },
