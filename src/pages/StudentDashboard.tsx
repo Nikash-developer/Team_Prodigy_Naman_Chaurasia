@@ -1004,31 +1004,35 @@ export default function StudentDashboard() {
 
   const handleAssistantSend = async (text: string) => {
     if (!text.trim()) return;
+    const userMsg = text;
     setAssistantInput('');
-    setAssistantMessages(prev => [...prev, { role: 'user', text }]);
+    setAssistantMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsAssistantTyping(true);
 
-    // Simulate AI thinking
-    setTimeout(() => {
-      let response = "";
-      const lower = text.toLowerCase();
-      if (lower.includes('assignment')) {
-        response = "You can view your upcoming assignments on the main dashboard. Don't forget to upload your PDF before the deadline!";
-      } else if (lower.includes('paper') || lower.includes('mumbai')) {
-        response = "The Mumbai University question papers are in the 'Mumbai Paper' tab. You can search by subject, year, or semester.";
-      } else if (lower.includes('syllabus')) {
-        response = "You can find wait the syllabus for any course in the 'Courses' tab by clicking on a course card and selecting 'View Syllabus'.";
-      } else if (lower.includes('profile') || lower.includes('name')) {
-        response = "You can update your profile in Settings > Profile. Changes reflect instantly in your header!";
-      } else if (lower.includes('notic')) {
-        response = "Check the notifications bell in the header! You can mark them all as read once you've seen them.";
-      } else {
-        response = "That's a great question! I'm constantly learning from Campus pace data. Is there anything specific about your assignments or Mumbai papers I can help with?";
-      }
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/chatbot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ message: userMsg })
+      });
 
-      setAssistantMessages(prev => [...prev, { role: 'assistant', text: response }]);
+      const data = await response.json();
+
+      if (data.response) {
+        setAssistantMessages(prev => [...prev, { role: 'assistant', text: data.response }]);
+      } else {
+        throw new Error(data.error || "Failed to get AI response");
+      }
+    } catch (error) {
+      console.error("AI Assistant Error:", error);
+      setAssistantMessages(prev => [...prev, { role: 'assistant', text: "I'm having trouble connecting to my brain right now. Please try again in a moment!" }]);
+    } finally {
       setIsAssistantTyping(false);
-    }, 1500);
+    }
   };
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<AssignmentWithFile[]>(() => {
@@ -1488,29 +1492,29 @@ export default function StudentDashboard() {
           .from('assignments')
           .getPublicUrl(filePath);
 
-        // 3. Prepare Metadata for Server-Side Sync (Now using the URL we just got)
-        const formData = new FormData();
-        formData.append('file_url', publicUrl);
-        formData.append('file_name', fileToUse.name);
-        formData.append('assignmentId', id.toString());
-        formData.append('student_email', user?.email || '');
-        formData.append('student_name', user?.name || '');
-        formData.append('page_count', Math.max(1, Math.ceil(fileToUse.size / 102400)).toString());
+        // 3. Prepare Metadata for Server-Side Sync
+        const syncPayload = {
+          file_url: publicUrl,
+          file_name: fileToUse.name,
+          assignmentId: id.toString(),
+          student_email: user?.email || '',
+          student_name: user?.name || '',
+          page_count: Math.max(1, Math.ceil(fileToUse.size / 102400))
+        };
 
-        // 4. Send URL to Backend
+        // 4. Send URL to Backend (Using JSON for maximum stability on Vercel)
         const rawToken = localStorage.getItem('token');
         const authHeader = rawToken && rawToken !== 'undefined' && rawToken !== 'null'
           ? `Bearer ${rawToken}`
           : '';
 
-        // 2. Single POST call to backend: Handles both Storage upload and Database record
         const res = await fetch('/api/upload', {
           method: 'POST',
           headers: {
-
+            'Content-Type': 'application/json',
             ...(authHeader ? { 'Authorization': authHeader } : {})
           },
-          body: formData
+          body: JSON.stringify(syncPayload)
         });
 
 
@@ -1531,8 +1535,8 @@ export default function StudentDashboard() {
           // Parallel update of Eco History
           const newEntry = {
             id: Date.now(),
-            fileName: assignment.uploadedFile.name,
-            impact: result.eco_update,
+            fileName: fileToUse.name,
+            impact: result.eco_update || { pages: 1, co2_prevented: 0.1, water_saved: 5 },
             timestamp: new Date().toISOString()
           };
           
@@ -1546,7 +1550,7 @@ export default function StudentDashboard() {
           await refreshUser();
           
           setAssignments(prev => prev.map(a => 
-            a.id === id ? { ...a, status: 'submitted' } : a
+            a.id.toString() === id.toString() ? { ...a, status: 'submitted' } : a
           ));
 
           setSubmissionCount(prev => prev + 1);

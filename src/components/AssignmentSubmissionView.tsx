@@ -262,7 +262,7 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
 
             // Update local assignment state
             setAssignments(prevArr => prevArr.map(a =>
-                a.id === selectedAssignment.id
+                a.id.toString() === selectedAssignment.id.toString()
                     ? { ...a, status: 'submitted', uploadedFile: fileToUpload }
                     : a
             ));
@@ -316,7 +316,7 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
 
     const handleDeleteFile = () => {
         setAssignments(prev => prev.map(a =>
-            a.id === selectedAssignment.id
+            a.id.toString() === selectedAssignment.id.toString()
                 ? { ...a, status: 'pending', uploadedFile: null }
                 : a
         ));

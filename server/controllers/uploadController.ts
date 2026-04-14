@@ -144,7 +144,11 @@ export const uploadFile = async (req: any, res: any) => {
         });
 
     } catch (error: any) {
-        console.error('Upload Error:', error);
-        res.status(500).json({ error: error.message || 'Server error during upload process' });
+        console.error('[CRITICAL] Upload process crash:', error);
+        res.status(500).json({ 
+            error: 'Failed to record submission in database.',
+            details: error.message,
+            tip: 'Check your MongoDB connection and Supabase storage settings.'
+        });
     }
 };
