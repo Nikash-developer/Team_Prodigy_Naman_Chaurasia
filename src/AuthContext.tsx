@@ -52,17 +52,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // For initial sessions or sign-ins, we always want to verify/update the profile
       try {
-        const { data: fetchUserData, error: dbError } = await supabase
+        let { data: fetchUserData, error: dbError } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
+        // FALLBACK to 'profiles' table if 'users' fails
+        if (dbError || !fetchUserData) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          if (profileData && !profileError) {
+            fetchUserData = profileData;
+            dbError = null;
+          }
+        }
+
         let userData = fetchUserData;
         const pendingRole = localStorage.getItem('pending_role');
 
         // Handle OAuth First-Time Sign IN (No Row Exists)
-        if (dbError && dbError.code === 'PGRST116') {
+        if (dbError && (dbError.code === 'PGRST116' || dbError.message?.includes('does not exist'))) {
           const newRole = pendingRole || session.user.user_metadata?.role || 'student';
           const newProfile = {
              id: session.user.id,
@@ -78,17 +91,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
              }
           };
 
-          const { data: insertedData, error: insertError } = await supabase
+          // Try inserting into 'users' first
+          let { data: insertedData, error: insertError } = await supabase
              .from('users')
              .insert([newProfile])
              .select()
              .single();
           
+          // If 'users' insert fails (e.g. table missing), try 'profiles'
+          if (insertError) {
+            const { data: profileInsert, error: pInsertError } = await supabase
+              .from('profiles')
+              .insert([newProfile])
+              .select()
+              .single();
+            if (!pInsertError) {
+              insertedData = profileInsert;
+              insertError = null;
+            }
+          }
+
           if (!insertError) {
             userData = insertedData;
           } else {
-            console.error("Failed to create OAuth user profile:", insertError);
-            userData = newProfile; // Fallback to local
+            console.error("Failed to create user profile in any table:", insertError);
+            userData = newProfile; // Fallback to local metadata
           }
         }
 
@@ -100,10 +127,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // We prioritize the role you JUST clicked on the login screen!
         const finalRole = pendingRole || roleFromTable || roleFromMetadata || 'student';
 
-        // If your selected role is different from what we have in the database, update the database!
+        // Update the database if the role needs changing
         if (userData && pendingRole && pendingRole !== userData.role && (!dbError || dbError.code !== 'PGRST116')) {
-          await supabase
-            .from('users')
+           const targetTable = (dbError === null && fetchUserData) ? 'users' : 'profiles'; 
+           await supabase
+            .from(targetTable)
             .update({ role: pendingRole })
             .eq('id', session.user.id);
         }
@@ -111,24 +139,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const freshUser: User = {
           id: session.user.id,
           email: session.user.email || '',
-          name: userData?.name || session.user.user_metadata?.full_name || 'User',
+          name: userData?.name || userData?.full_name || session.user.user_metadata?.full_name || 'User',
           role: finalRole as any,
-          department: userData?.department || '',
-          avatar: userData?.avatar || session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
-          eco_level: userData?.eco_level || 1,
+          department: userData?.department || session.user.user_metadata?.department || '',
           eco_stats: userData?.eco_stats || {
             total_pages_saved: 0,
             total_water_saved: 0,
             total_co2_prevented: 0,
             total_trees_preserved: 0
-          }
+          },
+          eco_level: userData?.eco_level || 1,
+          avatar: userData?.avatar || session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`
         };
 
         // HYBRID SYNC: If we have an email, double check the local backend for the latest stats
         if (freshUser.email) {
           try {
             // Using a relative path and encoding the email for maximum reliability
-            const statsRes = await fetch(`/api/auth/stats/${encodeURIComponent(freshUser.email)}`);
+            // Add a timeout to prevent hanging the whole login process if backend is slow/stuck
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            
+            const statsRes = await fetch(`/api/auth/stats/${encodeURIComponent(freshUser.email)}`, {
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
             if (statsRes.ok) {
               const { eco_stats } = await statsRes.json();
               if (eco_stats) {
@@ -142,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           } catch (backendErr) {
-            console.warn("Backend Stats Bridge unavailable, falling back to Supabase only.");
+            console.warn("Backend Stats Bridge unavailable or timed out, falling back to Supabase only.");
           }
         }
 

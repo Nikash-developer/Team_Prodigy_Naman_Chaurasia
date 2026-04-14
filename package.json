@@ -59,6 +59,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^8.0.0",
     "@types/papaparse": "^5.5.2",
+    "@vercel/node": "^5.7.5",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
     "mongodb-memory-server": "^11.0.1",

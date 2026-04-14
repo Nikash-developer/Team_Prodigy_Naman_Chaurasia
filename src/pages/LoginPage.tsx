@@ -64,32 +64,41 @@ export default function LoginPage() {
         const user = data.user;
         if (!user) throw new Error('No user data returned');
 
-        // Fetch user data from Supabase Table
-        const { data: userData, error: dbError } = await supabase
+        // Try primary 'users' table or secondary 'profiles' table
+        let { data: userData, error: dbError } = await supabase
           .from('users')
           .select('*')
           .eq('id', user.id)
           .single();
 
-        if (userData && !dbError) {
-          login({
-            id: user.id,
-            email: user.email || '',
-            name: userData.name || 'User',
-            role: userData.role || 'student',
-            department: userData.department || '',
-            avatar: userData.avatar
-          } as any);
-
-          if (userData.role === 'student') navigate('/student');
-          else if (userData.role === 'admin') navigate('/admin');
-          else navigate('/faculty');
-        } else {
-          const fallbackRole = user.user_metadata?.role || 'student';
-          if (fallbackRole === 'admin') navigate('/admin');
-          else if (fallbackRole === 'faculty' || fallbackRole === 'hod') navigate('/faculty');
-          else navigate('/student');
+        if (dbError || !userData) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          if (profileData && !profileError) {
+            userData = profileData;
+            dbError = null;
+          }
         }
+
+        const finalUser = {
+          id: user.id,
+          email: user.email || '',
+          name: userData?.name || userData?.full_name || user.user_metadata?.full_name || 'User',
+          role: (userData?.role || user.user_metadata?.role || 'student') as any,
+          department: userData?.department || user.user_metadata?.department || '',
+          avatar: userData?.avatar || user.user_metadata?.avatar_url
+        };
+
+        // Always call login to update context state
+        login(finalUser as any);
+
+        // Then navigate based on role
+        if (finalUser.role === 'admin') navigate('/admin');
+        else if (finalUser.role === 'faculty' || finalUser.role === 'hod') navigate('/faculty');
+        else navigate('/student');
       } else if (view === 'forgot-password') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
         if (resetError) throw resetError;
