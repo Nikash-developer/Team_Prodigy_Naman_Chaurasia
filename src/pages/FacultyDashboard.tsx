@@ -672,8 +672,8 @@ export default function FacultyDashboard() {
 
                         <p className="hover:text-slate-900 transition-colors cursor-text">Furthermore, the integration of permeable surfaces in urban design significantly reduces storm-water runoff, which in metropolitan areas frequently leads to localized flooding and the contamination of local water bodies with untreated urban pollutants.</p>
 
-                          <div className="my-6 lg:my-8 p-4 lg:p-6 bg-surface-container-low cursor-pointer rounded-2xl border border-outline-variant flex items-center justify-between hover:shadow-md hover:border-primary/30 transition-all group"
-                        >
+                          <motion.div className="my-6 lg:my-8 p-4 lg:p-6 bg-surface-container-low cursor-pointer rounded-2xl border border-outline-variant flex items-center justify-between hover:shadow-md hover:border-primary/30 transition-all group"
+                          >
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-surface-container-lowest rounded-xl shadow-sm group-hover:scale-110 transition-transform"><FileText size={18} className="lg:w-5 lg:h-5 text-primary" /></div>
                             <div>
