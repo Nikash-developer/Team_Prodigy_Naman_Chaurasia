@@ -80,55 +80,55 @@ const mockPapers: QuestionPaper[] = [
 
 const themes = {
   Light: {
-    bg: 'bg-[#F8F9FA]',
-    header: 'bg-white border-slate-100',
-    text: 'text-slate-900',
-    heading: 'text-slate-800',
-    card: 'bg-white border-slate-100',
-    navActive: 'text-primary bg-primary/5',
-    navInactive: 'text-slate-500 hover:bg-slate-50',
-    search: 'bg-[#F1F3F5]',
-    input: 'bg-slate-50 border-slate-100',
-    muted: 'text-slate-400',
-    border: 'border-slate-100',
+    bg: 'bg-surface',
+    header: 'bg-surface-container-lowest border-outline-variant',
+    text: 'text-on-surface',
+    heading: 'text-on-surface',
+    card: 'bg-surface-container-lowest border-outline-variant',
+    navActive: 'text-primary bg-primary-container/20',
+    navInactive: 'text-on-surface-variant hover:bg-surface-container-low',
+    search: 'bg-surface-container-low',
+    input: 'bg-surface-container-low border-outline-variant',
+    muted: 'text-on-surface-variant/60',
+    border: 'border-outline-variant',
     accent: 'text-primary',
-    accentBg: 'bg-primary/5',
-    sidebar: 'bg-white',
-    sidebarHover: 'hover:bg-slate-50'
+    accentBg: 'bg-primary-container/20',
+    sidebar: 'bg-surface-container-lowest',
+    sidebarHover: 'hover:bg-surface-container-low'
   },
   Dark: {
-    bg: 'bg-[#0f172a]',
-    header: 'bg-[#1e293b] border-slate-800',
-    text: 'text-slate-100',
-    heading: 'text-white',
-    card: 'bg-[#1e293b] border-slate-800',
-    navActive: 'text-[#22C55E] bg-[#22C55E]/10',
-    navInactive: 'text-slate-400 hover:bg-slate-800',
-    search: 'bg-[#334155]',
-    input: 'bg-[#1e292a] border-slate-700',
-    muted: 'text-slate-500',
-    border: 'border-slate-800',
-    accent: 'text-[#22C55E]',
-    accentBg: 'bg-[#22C55E]/10',
-    sidebar: 'bg-[#1e293b]',
-    sidebarHover: 'hover:bg-slate-800'
+    bg: 'bg-primary-dim',
+    header: 'bg-primary-dim/80 backdrop-blur-md border-on-primary/10',
+    text: 'text-on-primary',
+    heading: 'text-primary-container',
+    card: 'bg-on-surface/5 backdrop-blur-md border-on-primary/10',
+    navActive: 'text-primary-container bg-primary-container/10',
+    navInactive: 'text-on-primary/60 hover:bg-on-primary/10',
+    search: 'bg-on-primary/5',
+    input: 'bg-on-primary/5 border-on-primary/10',
+    muted: 'text-on-primary/40',
+    border: 'border-on-primary/10',
+    accent: 'text-primary-container',
+    accentBg: 'bg-primary-container/10',
+    sidebar: 'bg-primary-dim',
+    sidebarHover: 'hover:bg-on-primary/5'
   },
   Eco: {
-    bg: 'bg-[#f0f4f0]',
-    header: 'bg-[#f8faf8] border-[#dce6dc]',
-    text: 'text-[#2d4d2d]',
-    heading: 'text-[#1e3a1e]',
-    card: 'bg-[#fbfcff] border-[#dce6dc]',
-    navActive: 'text-[#2e7d32] bg-[#2e7d32]/10',
-    navInactive: 'text-[#5d7d5d] hover:bg-[#e8f0e8]',
-    search: 'bg-[#e8f0e8]',
-    input: 'bg-[#f8faf8] border-[#dce6dc]',
-    muted: 'text-[#8ca68c]',
-    border: 'border-[#dce6dc]',
-    accent: 'text-[#2e7d32]',
-    accentBg: 'bg-[#2e7d32]/10',
-    sidebar: 'bg-[#f8faf8]',
-    sidebarHover: 'hover:bg-[#e8f0e8]'
+    bg: 'bg-surface',
+    header: 'bg-surface-container-lowest border-primary/20',
+    text: 'text-on-surface',
+    heading: 'text-primary',
+    card: 'bg-surface-container-lowest border-primary/10',
+    navActive: 'text-primary bg-primary-container/30',
+    navInactive: 'text-on-surface-variant/80 hover:bg-primary-container/10',
+    search: 'bg-primary-container/10',
+    input: 'bg-surface-container-low border-primary/20',
+    muted: 'text-on-surface-variant/60',
+    border: 'border-primary/10',
+    accent: 'text-primary',
+    accentBg: 'bg-primary-container/20',
+    sidebar: 'bg-surface-container-lowest',
+    sidebarHover: 'hover:bg-primary-container/5'
   }
 };
 
@@ -1451,14 +1451,7 @@ export default function StudentDashboard() {
       }
 
       try {
-        // 1. Prepare Multipart Form Data for Server-Side Upload
-        const formData = new FormData();
-        formData.append('file', fileToUse);
-        formData.append('assignmentId', id.toString());
-        formData.append('student_email', user?.email || '');
-                formData.append('student_name', user?.name || '');
-
-        // 2. Perform Direct-to-Cloud Upload
+        // 1. Perform Direct-to-Cloud Upload
         const fileExt = fileToUse.name.split('.').pop();
         const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
         const filePath = `submissions/${fileName}`;
@@ -1495,7 +1488,16 @@ export default function StudentDashboard() {
           .from('assignments')
           .getPublicUrl(filePath);
 
-        // 3. Send URL to Backend
+        // 3. Prepare Metadata for Server-Side Sync (Now using the URL we just got)
+        const formData = new FormData();
+        formData.append('file_url', publicUrl);
+        formData.append('file_name', fileToUse.name);
+        formData.append('assignmentId', id.toString());
+        formData.append('student_email', user?.email || '');
+        formData.append('student_name', user?.name || '');
+        formData.append('page_count', Math.max(1, Math.ceil(fileToUse.size / 102400)).toString());
+
+        // 4. Send URL to Backend
         const rawToken = localStorage.getItem('token');
         const authHeader = rawToken && rawToken !== 'undefined' && rawToken !== 'null'
           ? `Bearer ${rawToken}`
