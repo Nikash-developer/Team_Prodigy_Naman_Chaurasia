@@ -1420,10 +1420,10 @@ export default function StudentDashboard() {
     fetchPapers();
   }, []);
 
-  const handleAssignmentAction = async (id: number, action: 'submit' | 'start') => {
+  const handleAssignmentAction = async (id: number, action: 'submit' | 'start', manualFile?: File) => {
     if (action === 'start') {
       setAssignments(prev => prev.map(a => {
-        if (a.id === id) {
+        if (a.id.toString() === id.toString()) {
           setActiveAssignmentId(id);
           const deadlineDate = new Date(a.deadline).getTime();
           const now = Date.now();
@@ -1437,13 +1437,15 @@ export default function StudentDashboard() {
     }
 
     if (action === 'submit') {
-      const assignment = assignments.find(a => a.id === id);
-      if (!assignment?.uploadedFile) {
+      const assignment = assignments.find(a => a.id.toString() === id.toString());
+      const fileToUse = manualFile || assignment?.uploadedFile;
+      
+      if (!fileToUse) {
         alert('Please upload a PDF file before submitting.');
         return;
       }
 
-      if (assignment.uploadedFile.size > 20 * 1024 * 1024) {
+      if (fileToUse.size > 20 * 1024 * 1024) {
         alert("This file is too large. Please keep it under 20MB.");
         return;
       }
@@ -1451,19 +1453,19 @@ export default function StudentDashboard() {
       try {
         // 1. Prepare Multipart Form Data for Server-Side Upload
         const formData = new FormData();
-        formData.append('file', assignment.uploadedFile);
+        formData.append('file', fileToUse);
         formData.append('assignmentId', id.toString());
         formData.append('student_email', user?.email || '');
                 formData.append('student_name', user?.name || '');
 
         // 2. Perform Direct-to-Cloud Upload
-        const fileExt = assignment.uploadedFile.name.split('.').pop();
+        const fileExt = fileToUse.name.split('.').pop();
         const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
         const filePath = `submissions/${fileName}`;
 
         const uploadPromise = supabase.storage
           .from('assignments')
-          .upload(filePath, assignment.uploadedFile, {
+          .upload(filePath, fileToUse, {
             cacheControl: '3600',
             upsert: false
           });
@@ -1582,13 +1584,18 @@ export default function StudentDashboard() {
     }
   };
 
-  const handleFileUpload = (id: number, file: File) => {
+  const handleFileUpload = async (id: number, file: File) => {
+    // 1. Update state so UI shows the file is ready
     setAssignments(prev => prev.map(a => {
-      if (a.id === id) {
+      if (a.id.toString() === id.toString()) {
         return { ...a, uploadedFile: file };
       }
       return a;
     }));
+
+    // 2. AUTO-SUBMIT: Immediately trigger the actual upload process
+    // This makes the button feel "active" and responsive
+    handleAssignmentAction(id, 'submit', file);
   };
 
   const [uploadPaperForm, setUploadPaperForm] = useState({
@@ -1672,7 +1679,7 @@ export default function StudentDashboard() {
 
   const handleDeleteUpload = (id: number) => {
     setAssignments(prev => prev.map(a => {
-      if (a.id === id) {
+      if (a.id.toString() === id.toString()) {
         const { uploadedFile, ...rest } = a;
         return { ...rest, status: 'in-progress' } as AssignmentWithFile;
       }

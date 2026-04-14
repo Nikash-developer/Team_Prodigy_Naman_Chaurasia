@@ -199,7 +199,7 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
                 });
 
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Cloud Storage Timeout (5m). This means your CORS settings in Supabase are blocking the connection. Please follow the setup guide.")), 300000)
+                setTimeout(() => reject(new Error("Cloud Storage Timeout (2m). This usually means your CORS settings in Supabase are blocking the connection. Please follow the 'Supabase Storage Fix' guide.")), 120000)
             );
 
             const { error: storageError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
@@ -214,7 +214,9 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
 
                 console.error("Supabase Storage Error:", storageError);
                 let detailedMsg = storageError.message;
-                if (detailedMsg.includes("fetch")) detailedMsg = "Network/CORS block. Please add your Vercel domain to Allowed Origins in Supabase Storage Setup.";
+                if (detailedMsg.includes("fetch") || detailedMsg.includes("CORS")) {
+                    detailedMsg = "Network/CORS block. Please check your Supabase Storage CORS settings and ensure the 'assignments' bucket exists.";
+                }
                 throw new Error(`Cloud Error: ${detailedMsg}`);
             }
 
@@ -479,16 +481,27 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
                                             <span className={`text-[10px] font-bold ${t.muted} opacity-60 uppercase mt-2 block tracking-tight`}>Cloud Storage Limit: 50MB (Ready)</span>
                                         </p>
                                     </div>
-                                    <label className="cursor-pointer bg-primary text-white px-8 py-4 rounded-2xl font-black hover:scale-105 transition-all shadow-xl shadow-primary/20 inline-block pointer-events-auto">
-                                        Browse Files
+                                    <div className="flex flex-col items-center gap-4">
+                                        <button 
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="bg-primary text-white px-10 py-5 rounded-[2rem] font-black hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-primary/30 flex items-center gap-3 relative z-20"
+                                        >
+                                            <Upload size={20} />
+                                            Browse Files
+                                        </button>
                                         <input
                                             type="file"
                                             ref={fileInputRef}
                                             className="hidden"
                                             accept=".pdf,.docx"
-                                            onChange={(e) => e.target.files && validateAndSetFile(e.target.files[0])}
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files[0]) {
+                                                    validateAndSetFile(e.target.files[0]);
+                                                }
+                                            }}
                                         />
-                                    </label>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">PDF and DOCX Support</p>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="w-full max-w-sm space-y-8">
