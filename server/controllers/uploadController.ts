@@ -19,11 +19,11 @@ export const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }
 
 export const uploadFile = async (req: any, res: any) => {
     try {
-        const rawAssignmentId = req.body.assignment_id || req.body.assignmentId;
-        const assignment_id = mongoose.Types.ObjectId.isValid(rawAssignmentId) 
-            ? rawAssignmentId 
-            : new mongoose.Types.ObjectId(); 
-
+        const assignment_id = req.body.assignment_id || req.body.assignmentId;
+        
+        if (!assignment_id) {
+            return res.status(400).json({ error: 'Assignment ID is required for submission.' });
+        }
         const studentEmail = req.body.student_email || (req.user && req.user.email);
         console.log(`[Eco-Sync] Incoming request for: ${studentEmail || 'Unknown'}`);
         

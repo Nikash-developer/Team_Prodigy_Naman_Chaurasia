@@ -240,9 +240,11 @@ export const AssignmentSubmissionView: React.FC<AssignmentSubmissionViewProps> =
                     ...(authHeader ? { 'Authorization': authHeader } : {})
                 },
                 body: JSON.stringify({
-                    assignmentId: selectedAssignment.id,
+                    assignmentId: selectedAssignment.id.toString(),
                     file_url: publicUrl,
-                    file_name: fileToUpload.name
+                    file_name: fileToUpload.name,
+                    student_email: user?.email || '',
+                    student_name: user?.name || ''
                 })
             });
 

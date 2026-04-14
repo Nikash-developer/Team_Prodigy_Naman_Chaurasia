@@ -538,6 +538,16 @@ const AIAssistant: React.FC<{ onClose: () => void, theme: any }> = ({ onClose, t
     setIsTyping(true);
 
     try {
+      // Robust token fetching for both Local Storage and Supabase
+      let token = localStorage.getItem('token');
+      if (!token) {
+        const sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (sbKeys.length > 0) {
+          const sbData = JSON.parse(localStorage.getItem(sbKeys[0]) || '{}');
+          token = sbData.access_token;
+        }
+      }
+
       const response = await fetch('/api/chatbot', {
         method: 'POST',
         headers: {
@@ -556,7 +566,7 @@ const AIAssistant: React.FC<{ onClose: () => void, theme: any }> = ({ onClose, t
       }
     } catch (error) {
       console.error("AI Assistant Error:", error);
-      setMessages(prev => [...prev, { role: 'ai', text: "I'm having trouble connecting to my brain right now. Please check your internet or try again in a moment!" }]);
+      setMessages(prev => [...prev, { role: 'ai', text: "My connection to the AI network was interrupted. Please try again in a moment!" }]);
     } finally {
       setIsTyping(false);
     }
@@ -1010,7 +1020,16 @@ export default function StudentDashboard() {
     setIsAssistantTyping(true);
 
     try {
-      const token = localStorage.getItem('token');
+      // Robust token fetching for both Local Storage and Supabase
+      let token = localStorage.getItem('token');
+      if (!token) {
+        const sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (sbKeys.length > 0) {
+          const sbData = JSON.parse(localStorage.getItem(sbKeys[0]) || '{}');
+          token = sbData.access_token;
+        }
+      }
+
       const response = await fetch('/api/chatbot', {
         method: 'POST',
         headers: {
@@ -1029,7 +1048,7 @@ export default function StudentDashboard() {
       }
     } catch (error) {
       console.error("AI Assistant Error:", error);
-      setAssistantMessages(prev => [...prev, { role: 'assistant', text: "I'm having trouble connecting to my brain right now. Please try again in a moment!" }]);
+      setAssistantMessages(prev => [...prev, { role: 'assistant', text: "My connection to the AI network was interrupted. Please try again in a moment!" }]);
     } finally {
       setIsAssistantTyping(false);
     }
@@ -1076,6 +1095,7 @@ export default function StudentDashboard() {
   const [saveStatus, setSaveStatus] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [submissionCount, setSubmissionCount] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [readNotifications, setReadNotifications] = useState<string[]>([]);
 
   // Quiz State
@@ -1453,8 +1473,8 @@ export default function StudentDashboard() {
         alert("This file is too large. Please keep it under 20MB.");
         return;
       }
-
       try {
+        setIsSubmitting(true);
         // 1. Perform Direct-to-Cloud Upload
         const fileExt = fileToUse.name.split('.').pop();
         const fileName = `${user?.id || 'anon'}_${Date.now()}.${fileExt}`;
@@ -1478,6 +1498,7 @@ export default function StudentDashboard() {
           if (storageError.message?.toLowerCase().includes("lock")) {
             console.log("Dashboard lock contention, retrying in 1s...");
             await new Promise(r => setTimeout(r, 1000));
+            setIsSubmitting(false);
             return handleAssignmentAction(id, action);
           }
 
@@ -1493,6 +1514,7 @@ export default function StudentDashboard() {
           .getPublicUrl(filePath);
 
         // 3. Prepare Metadata for Server-Side Sync
+        // NORMALIZED ID: Use the raw ID if numeric, otherwise string
         const syncPayload = {
           file_url: publicUrl,
           file_name: fileToUse.name,
@@ -1517,13 +1539,8 @@ export default function StudentDashboard() {
           body: JSON.stringify(syncPayload)
         });
 
-
-
-
-
-
         if (res.ok) {
-          // ULTIMATE JSON SHIELD: Catching errors even on successful HTTP status
+          // ULTIMATE JSON SHIELD
           let result;
           try {
             result = await res.json();
@@ -1563,10 +1580,6 @@ export default function StudentDashboard() {
             colors: ['#22C55E', '#16A34A', '#86EFAC', '#4ADE80'],
             shapes: ['circle', 'square']
           });
-
-          // Tip: In a real app, we'd trigger a profile refresh here to show updated eco_stats
-          // For now, we'll suggest the user that their impact has been recorded
-          console.log("Assignment uploaded and eco-impact recorded:", result.eco_impact);
         } else {
           if (res.status === 413) {
             throw new Error('File is too large for the current hosting plan (Vercel Limit). Works locally up to 40MB.');
@@ -1577,7 +1590,6 @@ export default function StudentDashboard() {
           if (contentType && contentType.includes("application/json")) {
             errorData = await res.json();
           } else {
-            console.warn("Non-JSON error in dashboard:", await res.text());
             errorData = { error: 'Server returned a non-JSON error. The file might be too large or the server timed out.' };
           }
           
@@ -1586,7 +1598,9 @@ export default function StudentDashboard() {
       } catch (error: any) {
         console.error("Submission error:", error);
         alert(`Error submitting assignment: ${error.message}`);
-      }
+      } finally {
+        setIsSubmitting(false);
+      } }
     }
   };
 
@@ -1758,6 +1772,31 @@ export default function StudentDashboard() {
 
   return (
     <div className={`min-h-screen transition-all duration-500 font-sans ${t.bg} ${t.text} overflow-x-hidden pb-28 lg:pb-0`}>
+      {/* Global Submission Overlay */}
+      <AnimatePresence>
+        {isSubmitting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md"
+          >
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+              <Leaf className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary animate-pulse" size={24} />
+            </div>
+            <motion.p
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className={`mt-4 text-sm font-black uppercase tracking-widest ${t.heading}`}
+            >
+              Syncing your impact...
+            </motion.p>
+            <p className={`text-[10px] font-bold ${t.muted} mt-1`}>Bypassing Vercel Payload Limits & Recording CO2 Savings</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Top Navigation Bar */}
       <header className={`sticky top-0 z-50 ${t.header} border-b px-4 lg:px-8 py-3 lg:py-4 flex items-center justify-between shadow-sm transition-all duration-500`}>
         <div className="flex items-center gap-3 lg:gap-12">

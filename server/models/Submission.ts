@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 
 const submissionSchema = new mongoose.Schema({
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    assignment_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Assignment', required: true },
+    assignment_id: { type: String, required: true }, // Flex-ID: Supports Mock IDs (1, 2, 3) and ObjectIDs
     file_url: { type: String }, // Optional path for local dev
     file_data: { type: Buffer }, // Persistent storage for Vercel
     content_type: { type: String },
